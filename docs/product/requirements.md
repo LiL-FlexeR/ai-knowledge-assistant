@@ -1,6 +1,6 @@
 # Requirements
 
-All requirements below are planned. Architectural defaults and public DTOs are authoritative in [system overview](../architecture/system-overview.md) and [API contracts](../architecture/api-contracts.md).
+The document/RAG requirements below remain planned. S00 verifies the liveness portion of FR-09 and initial workspace/configuration aspects of NFR-01/04/05/06; none of those broader requirements is complete yet. Architectural defaults and public DTOs are authoritative in [system overview](../architecture/system-overview.md) and [API contracts](../architecture/api-contracts.md).
 
 ## Functional requirements
 

@@ -2,7 +2,7 @@
 
 A planned document question-answering application using Retrieval-Augmented Generation (RAG). Upload PDF, TXT, or Markdown files, search their content, and ask questions with references to the supporting passages.
 
-**Status: documentation and agent tooling foundation.** There is no implemented application, application workspace, migration, or runnable Docker configuration yet. The existing `package.json` and `package-lock.json` provide auxiliary Playwright CLI tooling. All application features and development commands below are planned; all implementation stages remain unchecked.
+**Status: S00 — Project Setup implemented and verified.** The pnpm workspace runs a NestJS liveness API and a minimal Next.js shell. Configuration validation, safe error envelopes, browser-safe shared schemas, and quality commands are implemented. Database/Compose, document management, retrieval, AI, and product screens remain planned in S01–S07. See [S00 verification evidence](docs/features/stages/S00-project-setup.md#verification-evidence).
 
 ## Problem and planned features
 
@@ -19,7 +19,7 @@ The unauthenticated MVP must run locally and must not be exposed publicly. Uploa
 
 ## Technology stack
 
-| Area | Planned technology |
+| Area | Selected technology (later capabilities remain planned) |
 | --- | --- |
 | Backend | Node.js, strict TypeScript, NestJS, Prisma, Zod, Jest |
 | Data | PostgreSQL with pgvector; local originals on a Docker volume |
@@ -28,7 +28,7 @@ The unauthenticated MVP must run locally and must not be exposed publicly. Uploa
 | Client state/forms | TanStack Query, React Hook Form, Zod |
 | Development | pnpm workspaces, Docker Compose |
 
-S00 will verify compatible current stable releases and pin them. No package versions are prescribed by this planning exercise.
+S00 pins Node.js 24.22.3 LTS, pnpm 12.21.0, NestJS 12.5.1, Next.js 16.4.6, React 19.3.1, TypeScript 6.0.3, Zod 4.6.7, and Jest 30.5.2. TypeScript 6 and ESLint 9.39.5 are selected for current adapter/plugin compatibility. [ADR-001](docs/architecture/decisions/ADR-001-technology-stack.md#s00-version-verification) records sources, adapters, and version decisions. All direct dependencies are exact and transitive dependencies are locked in `pnpm-lock.yaml`.
 
 ## Architecture and RAG workflow
 
@@ -47,13 +47,13 @@ See [architecture](docs/architecture/README.md), [API contracts](docs/architectu
 
 ## Repository structure
 
-Current documentation lives in `docs/` and root `AGENTS.md`; installed project-local skills live in [.agents/skills](.agents/skills/). S00 will add the application workspaces to this structure:
+Documentation lives in `docs/` and root `AGENTS.md`; installed project-local skills live in [.agents/skills](.agents/skills/). The application workspaces are:
 
 ```text
-apps/                  # Planned in S00
-  api/                 # NestJS API; Prisma schema/migrations live here
-  web/                 # Next.js UI
-packages/              # Planned in S00
+apps/
+  api/                 # NestJS liveness/config/HTTP foundation; Prisma planned S01
+  web/                 # Next.js App Router setup shell; product screens planned S06
+packages/
   shared/              # Public DTO schemas/types only
 docs/
   architecture/        # Contracts, lifecycle, RAG, security, testing, ADRs
@@ -70,41 +70,52 @@ The 15 installed skills include four project workflows: [implement-roadmap-stage
 
 Follow the [skill selection and precedence rules](AGENTS.md#agent-skills): read the matching `SKILL.md` and combine the relevant workflow, design, and technology guidance without expanding the requested stage. Installing a skill does not install the corresponding application framework or implement a feature. Skills CLI-managed source revisions, including Refero, are tracked in [skills-lock.json](skills-lock.json). Impeccable is installed locally and declares its version in its skill metadata, but is not recorded in that lockfile. Playwright CLI is provided separately by [package.json](package.json).
 
-## Planned local setup
+## Local setup
 
-These instructions become usable as S00/S01 deliver tooling; full AI and UI flows require S03–S06. S00 must document exact prerequisites and environment loading for the selected versions.
+Install Node.js **24.22.3** (also recorded in `.node-version`) and pnpm **12.21.0**. For example, after selecting Node with your runtime manager, install pnpm with `npm install --global pnpm@12.21.0`. Docker, database credentials, and an OpenAI key are unnecessary for S00.
 
-1. Install the verified Node.js LTS release, pinned pnpm, and Docker with Compose.
-2. Copy the future root `.env.example` to `.env`; supply local database credentials and, from S03 onward, a server-only OpenAI key.
-3. Run `pnpm install --frozen-lockfile` after the workspace exists.
-4. Run `pnpm infra:up`, then `pnpm db:migrate`, then `pnpm dev` for host development.
-5. Alternatively run `docker compose up --build` after S01 for the API/web/database containers, with S06 supplying the UI.
+```bash
+pnpm install --frozen-lockfile
+cp .env.example .env
+pnpm dev
+```
 
-Host development will use database `127.0.0.1:5432`; the container API will use `db:5432`. The web UI will be at `http://localhost:3000`, the API at `http://localhost:3001/api`. Bind published ports to loopback. See [runtime topology](docs/architecture/system-context.md).
+Copying `.env.example` is optional for S00; its blank database/AI placeholders are valid. Open `http://localhost:3000` and call `curl -i http://localhost:3001/api/health`. Liveness returns `{"data":{"status":"ok"},"requestId":"<generated UUID>"}` with the same ID in `X-Request-Id`. Unknown routes, including readiness, return a safe 404 envelope. Both servers bind to `127.0.0.1`. Stop development with Ctrl-C; the process runner stops sibling watchers when a command exits.
+
+If web port 3000 is occupied, run `PORT=3100 WEB_ORIGIN=http://localhost:3100 pnpm dev` (or set these in root `.env`), then open `http://localhost:3100`. `API_PORT` overrides API port 3001. Root environment loading uses the launcher's file location, including when running `pnpm --filter @aka/api dev` or `pnpm --filter @aka/web dev`; exported shell variables take precedence. After installation, root `pnpm dev` builds shared contracts before starting watchers. For an individual app, run `pnpm --filter @aka/shared build` first.
+
+After `pnpm build`, `pnpm --filter @aka/api start` and `pnpm --filter @aka/web start` run the compiled shells. pnpm scripts enforce the pinned Node runtime. pnpm dependency-script execution is explicitly limited to the selected native watcher; its optional Playwright agent-skill approval notice does not block installation or the already installed project skills.
+
+**Planned from S01:** Docker Compose, `pnpm infra:up`, migrations, database readiness, and container runtime. Host database connections will use `127.0.0.1:5432`; container API connections will use `db:5432`. See [runtime topology](docs/architecture/system-context.md). No database/AI operation is available yet.
 
 ## Environment configuration
 
-The [system overview](docs/architecture/system-overview.md) owns the complete planned configuration and defaults. Root `.env` is private and ignored; `.env.example` contains placeholders. `DATABASE_URL`, `OPENAI_API_KEY`, `OPENAI_CHAT_MODEL`, `STORAGE_ROOT`, and the internal proxy target are server-only. No AI secret may use a `NEXT_PUBLIC_` prefix.
+The [system overview](docs/architecture/system-overview.md) owns configuration defaults. API validation is implemented for the listed settings, including integer/range bounds, overlap smaller than chunk size, absolute storage paths, and local web origins. Blank optional database/AI values are treated as absent; S00 never connects to these services or creates storage. Future feature stages add their required settings and runtime compatibility checks. Invalid settings fail startup with variable names and no values. In S00, `NEXT_PUBLIC_*` configuration is unsupported and rejected by the API.
+
+Root `.env` is private and ignored; `.env.example` contains placeholders. The API and web dev/start scripts explicitly load it, with shell variables taking precedence. Quality checks do not load the private file, and tests use isolated settings. `DATABASE_URL`, `OPENAI_API_KEY`, `OPENAI_CHAT_MODEL`, `STORAGE_ROOT`, and the internal proxy target are server-only. No Next.js public configuration exports secrets. The same-origin proxy is planned for S06.
 
 The embedding profile is initially `text-embedding-3-small`, 1,536 dimensions; generation model selection and tokenizer compatibility are verified during implementation. Changing an embedding profile requires coordinated schema/data migration, not just an environment edit.
 
-## Planned development commands
+## Development commands
 
 | Command | Available from | Purpose |
 | --- | --- | --- |
-| `pnpm dev`, `pnpm build` | S00 | Run app shells; build workspaces |
-| `pnpm lint`, `pnpm typecheck`, `pnpm test` | S00 | Deterministic quality checks |
+| `pnpm dev`, `pnpm build` | Available (S00) | Run app shells; build workspaces |
+| `pnpm lint`, `pnpm typecheck`, `pnpm test` | Available (S00) | ESLint/Prettier, strict TS/browser boundary, deterministic Jest checks |
+| `pnpm format` | Available (S00) | Format application code and tooling; preserve existing documentation/skills |
 | `pnpm infra:up`, `pnpm infra:down` | S01 | Start/stop local PostgreSQL; preserve volumes |
 | `pnpm db:generate`, `pnpm db:migrate`, `pnpm db:migrate:dev` | S01 | Generate client, apply/create migrations |
 | `pnpm test:integration` | S01 | Isolated PostgreSQL/pgvector tests, expanded each stage |
 | `pnpm test:e2e` | S06 | Mock-provider browser workflow checks |
 | `pnpm eval:offline`, `pnpm eval:live` | S07 | Deterministic fixtures; explicit paid AI evaluation |
 
-No command in this table is executable in the current documentation-only repository.
+S01–S07 commands remain planned and are not defined yet. The Jest script enables Node's experimental VM modules for NestJS 12's ESM dependencies and runs serially; normal tests make no database or paid AI calls. The existing Playwright CLI remains pinned at 0.1.24. npm's old lockfile and tracked generated `node_modules` copies were replaced by the pnpm lockfile and ignore rules; installed project-local skills are preserved.
 
 ## Testing and evaluation
 
-Unit tests cover validation, normalization, source-preserving chunking, context construction, and error handling. Integration tests use actual PostgreSQL/pgvector with deterministic AI fakes. API and browser tests cover uploads, processing, questions, and deletion. A synthetic evaluation set will measure retrieval relevance, citation validity, groundedness, abstention, ambiguity, conflicts, and document prompt injection. There are no measured scores yet. See [testing strategy](docs/architecture/testing-strategy.md).
+Run `pnpm lint`, `pnpm typecheck`, `pnpm test`, and `pnpm build`. S00 tests cover liveness/envelopes, generated request IDs, safe unknown-route/internal/parser errors, the JSON size limit, environment bounds/redaction, and root `.env` loading/exit propagation. Shared contracts compile independently with DOM libraries and no Node types. A clean-build secret-canary scan verified that server credentials did not enter web artifacts.
+
+Later stages will add normalization/chunking/context tests, real PostgreSQL/pgvector integration with AI fakes, browser business workflows, and synthetic AI evaluation. There are no measured RAG quality scores yet. See [testing strategy](docs/architecture/testing-strategy.md).
 
 ## Roadmap and future work
 
@@ -112,5 +123,4 @@ Use the [primary execution roadmap](docs/features/ROADMAP.md): S00 setup → S01
 
 Authentication, deployment hardening, OCR, background queues, streaming, hybrid search, reranking, chat history, additional providers, versioning, S3 storage, and observability dashboards are optional [future work](docs/product/mvp-scope.md). They are not MVP infrastructure.
 
-Start future development with **S00 — Project Setup**. Agents should first read [AGENTS.md](AGENTS.md).
-# ai-knowledge-assistant
+S00 is complete; S01 is the next unimplemented stage and requires an explicit request. Agents should first read [AGENTS.md](AGENTS.md).

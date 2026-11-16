@@ -1,6 +1,6 @@
 # Implementation roadmap
 
-**Status: planning complete; implementation not started.** All checkboxes below are intentionally unchecked. This is the primary execution plan for future sessions. Execute exactly the requested stage, verify its dependencies in the repository, and stop before the next stage. If prerequisites are missing, report the dependency instead of creating undocumented substitutes.
+**Status: S00 complete; S01–S07 remain unimplemented.** S00 checks and limitations are recorded in its [verification evidence](stages/S00-project-setup.md#verification-evidence). This is the primary execution plan for future sessions. Execute exactly the requested stage, verify its dependencies in the repository, and stop before the next stage. If prerequisites are missing, report the dependency instead of creating undocumented substitutes.
 
 Read [AGENTS.md](../../AGENTS.md), [product requirements](../product/requirements.md), and relevant [architecture](../architecture/README.md). Detailed stage documents own execution detail; public behavior remains governed by [API contracts](../architecture/api-contracts.md). Verify current stable tooling during implementation; commands below are planned until their owning stage introduces them.
 
@@ -16,25 +16,25 @@ Completion evidence belongs in the final verification section of each stage docu
 
 **Implementation tasks**
 
-- [ ] Verify and pin compatible Node LTS, pnpm, NestJS, Next.js, TypeScript, and test/tooling versions; commit lockfile.
-- [ ] Create API/web/shared workspaces, server-safe configuration loading, shared contract foundation, and API liveness.
-- [ ] Add environment placeholders, ignore rules, lint/typecheck/test/build/dev commands, and accurate setup notes.
+- [x] Verify and pin compatible Node LTS, pnpm, NestJS, Next.js, TypeScript, and test/tooling versions; commit lockfile.
+- [x] Create API/web/shared workspaces, server-safe configuration loading, shared contract foundation, and API liveness.
+- [x] Add environment placeholders, ignore rules, lint/typecheck/test/build/dev commands, and accurate setup notes.
 
 **Expected deliverables**
 
-- [ ] Workspace manifests, app shells, strict configuration, `.env.example`, and setup documentation.
+- [x] Workspace manifests, app shells, strict configuration, `.env.example`, and setup documentation.
 
 **Acceptance criteria**
 
-- [ ] Fresh install/build/checks work; liveness returns its contract; malformed environment fails safely without leaking secrets.
+- [x] Fresh install/build/checks work; liveness returns its contract; malformed environment fails safely without leaking secrets.
 
 **Required tests**
 
-- [ ] API liveness and meaningful configuration/error-contract tests; strict type/lint/build checks.
+- [x] API liveness and meaningful configuration/error-contract tests; strict type/lint/build checks.
 
 **Definition of Done**
 
-- [ ] All S00 criteria/checks have recorded evidence, version decisions are documented, and README accurately labels later capabilities planned.
+- [x] All S00 criteria/checks have recorded evidence, version decisions are documented, and README accurately labels later capabilities planned.
 
 ## S01 — Database and Infrastructure
 

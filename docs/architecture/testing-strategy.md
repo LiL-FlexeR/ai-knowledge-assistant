@@ -72,4 +72,4 @@ Do not score zero-denominator quantities as perfect: report N/A and counts. Retr
 
 ## Stage verification and reports
 
-Each [stage](../features/ROADMAP.md) owns its required commands and tests. Report exact commands/results and why unavailable checks could not run. S07 consolidates regression and evaluation evidence; it does not excuse missing S02–S06 business tests. This documentation initialization can validate links, metadata, scope, dependencies, and contract consistency only; there is no runtime to test yet.
+Each [stage](../features/ROADMAP.md) owns its required commands and tests. Report exact commands/results and why unavailable checks could not run. S07 consolidates regression and evaluation evidence; it does not excuse missing S02–S06 business tests. S00 now supplies Jest HTTP/configuration/environment-loader tests, strict API/web/shared compilation (including a DOM-only shared import check), lint/format checks, builds, and shell smoke evidence. Database/vector integration, business browser workflows, and AI evaluation remain planned.

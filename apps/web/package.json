@@ -1,0 +1,21 @@
+{
+  "name": "@aka/web",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "node ../../scripts/with-env.mjs next dev --hostname 127.0.0.1",
+    "build": "next build",
+    "start": "node ../../scripts/with-env.mjs next start --hostname 127.0.0.1",
+    "typecheck": "next typegen && tsc --noEmit && tsc -p tsconfig.browser.json"
+  },
+  "dependencies": {
+    "@aka/shared": "workspace:*",
+    "next": "16.4.6",
+    "react": "19.3.1",
+    "react-dom": "19.3.1"
+  },
+  "devDependencies": {
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0"
+  }
+}

@@ -1,6 +1,6 @@
 # Architecture guide
 
-These documents specify target behavior; no runtime is implemented yet.
+These documents specify target behavior. S00 implements the workspace, liveness/configuration/error foundation, and minimal web shell; database and document/RAG runtime behavior remain planned.
 
 | Document | Owns |
 | --- | --- |
