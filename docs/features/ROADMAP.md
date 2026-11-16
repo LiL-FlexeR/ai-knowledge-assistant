@@ -1,6 +1,6 @@
 # Implementation roadmap
 
-**Status: S00 complete; S01–S07 remain unimplemented.** S00 checks and limitations are recorded in its [verification evidence](stages/S00-project-setup.md#verification-evidence). This is the primary execution plan for future sessions. Execute exactly the requested stage, verify its dependencies in the repository, and stop before the next stage. If prerequisites are missing, report the dependency instead of creating undocumented substitutes.
+**Status: S00–S01 complete; S02–S07 remain unimplemented.** Checks and limitations are recorded in [S00 evidence](stages/S00-project-setup.md#verification-evidence) and [S01 evidence](stages/S01-database-and-infrastructure.md#verification-evidence). This is the primary execution plan for future sessions. Execute exactly the requested stage, verify its dependencies in the repository, and stop before the next stage. If prerequisites are missing, report the dependency instead of creating undocumented substitutes.
 
 Read [AGENTS.md](../../AGENTS.md), [product requirements](../product/requirements.md), and relevant [architecture](../architecture/README.md). Detailed stage documents own execution detail; public behavior remains governed by [API contracts](../architecture/api-contracts.md). Verify current stable tooling during implementation; commands below are planned until their owning stage introduces them.
 
@@ -46,25 +46,25 @@ Completion evidence belongs in the final verification section of each stage docu
 
 **Implementation tasks**
 
-- [ ] Pin PostgreSQL/pgvector image and compatible Prisma integration; create both entity schemas/custom vector migration.
-- [ ] Configure loopback-only Compose, database and original-file volumes, explicit migrations, and safe readiness.
-- [ ] Add isolated pgvector integration environment and database lifecycle scripts.
+- [x] Pin PostgreSQL/pgvector image and compatible Prisma integration; create both entity schemas/custom vector migration.
+- [x] Configure loopback-only Compose, database and original-file volumes, explicit migrations, and safe readiness.
+- [x] Add isolated pgvector integration environment and database lifecycle scripts.
 
 **Expected deliverables**
 
-- [ ] Compose/runtime files, Prisma schema/migrations, database/config/health modules, and test database harness.
+- [x] Compose/runtime files, Prisma schema/migrations, database/config/health modules, and test database harness.
 
 **Acceptance criteria**
 
-- [ ] Empty-database migrations create the vector extension/type/constraints; real SQL can insert/query/rollback vectors; readiness fails safely on dependency faults.
+- [x] Empty-database migrations create the vector extension/type/constraints; real SQL can insert/query/rollback vectors; readiness fails safely on dependency faults.
 
 **Required tests**
 
-- [ ] Migration, FK/uniqueness/cascade, parameterized raw SQL dimension/order, readiness, and isolated test-target guard checks.
+- [x] Migration, FK/uniqueness/cascade, parameterized raw SQL dimension/order, readiness, and isolated test-target guard checks.
 
 **Definition of Done**
 
-- [ ] Compose and host paths/URLs are documented and verified; required checks pass with no AI calls or public exposure.
+- [x] Compose and host paths/URLs are documented and verified; required checks pass with no AI calls or public exposure.
 
 ## S02 — Document Management
 

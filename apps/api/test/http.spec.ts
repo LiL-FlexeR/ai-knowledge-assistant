@@ -54,7 +54,6 @@ describe('HTTP contracts', () => {
   });
 
   it.each([
-    '/api/health/ready',
     '/api/documents',
     '/api/search',
     '/api/chat/ask',

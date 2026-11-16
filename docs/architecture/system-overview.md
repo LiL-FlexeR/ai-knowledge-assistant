@@ -29,13 +29,14 @@ Controllers only validate transport, invoke application services, and map respon
 - Citation identities and locations come from retrieved rows, never from model-generated filenames or pages.
 - A valid citation identity is necessary but does not prove that the cited passage supports a claim.
 
-## Planned configuration
+## Configuration
 
-S00 implements a single API configuration schema, validates supplied settings/bounds, and allows blank/absent future database/AI placeholders. It performs no database, filesystem-storage, or provider operations. S01 wires database/storage, S03 AI, and S05 generation settings and their staged requirements. Only require the key when AI-backed operations become enabled; missing credentials then produce a documented disabled/not-ready state. From S03 the full Compose profile requires the key. Fail fast on malformed configuration with variable names only. S00 rejects `NEXT_PUBLIC_*` settings; shared schemas contain no configuration or secrets. These are project defaults, not measured quality or performance claims.
+S00–S01 implement the API configuration schema and database/storage readiness. Blank database URLs allow liveness only; readiness reports 503. Database connections are lazy, shared by dependency injection, bounded by a five-connection pool and connection/statement timeouts, and disconnected on shutdown. Readiness probes private storage with a generated temporary file and removes only its own probe. S03 adds AI operations and S05 generation settings. Only require the key when AI-backed operations become enabled; missing credentials then produce a documented disabled/not-ready state. From S03 the full Compose profile requires the key. Fail fast on malformed configuration with variable names only. S00 rejects `NEXT_PUBLIC_*` settings; shared schemas contain no configuration or secrets. These are project defaults, not measured quality or performance claims.
 
 | Variable | Default or rule |
 | --- | --- |
-| `NODE_ENV`, `API_PORT` | development; 3001 |
+| `NODE_ENV`, `API_PORT`, `API_HOST` | development; 3001; host `127.0.0.1`, container override `0.0.0.0` behind loopback-only port publishing |
+| `POSTGRES_PASSWORD`, `RUNTIME_DB_PASSWORD`, `DB_PORT` | Private Compose initialization credentials; host database port 5432. Use distinct URL-safe passwords; see README host/container setup |
 | `PORT` | Web port 3000; standard Next.js override, loaded from root `.env` by dev/start |
 | `DATABASE_URL`, `TEST_DATABASE_URL` | Required when database/tests enabled; separate databases; no production targets in tests |
 | `MIGRATION_DATABASE_URL` | Server/tooling-only schema-owner URL for explicit migrations; runtime URL uses data privileges |
@@ -66,6 +67,6 @@ S00 implements a single API configuration schema, validates supplied settings/bo
 
 Limits may be lowered without a redesign. Raising them requires checking memory, token budgets, provider constraints, and evaluation. Model context window must accommodate instructions, question, context wrappers, 4000 evidence tokens, and 800 output tokens; validate the complete assembled request, not only chunk text. Tokenizer selection is part of pinned model configuration.
 
-S00 caps resource limits at the documented defaults (retrieval topK remains 1–10), fixes embedding dimensions to 1536 and ingestion concurrency to one, and validates overlap below chunk size. Raising those caps requires a reviewed configuration/documentation change. Runtime profile/model compatibility remains the responsibility of later stages.
+S00 caps resource limits at the documented defaults (retrieval topK remains 1–10), fixes embedding dimensions to 1536 and ingestion concurrency to one, and validates overlap below chunk size. Raising those caps requires a reviewed configuration/documentation change. S01 readiness verifies actual vector dimension and stored ready profile/model/dimensions/pipeline compatibility; provider/tokenizer compatibility remains for later stages.
 
-Per-route request limits and safe storage rules are owned by [security](security.md). Public processing states and error contracts are owned by [API contracts](api-contracts.md). [README](../../README.md) distinguishes available S00 commands from planned later-stage commands.
+Per-route request limits and safe storage rules are owned by [security](security.md). Public processing states and error contracts are owned by [API contracts](api-contracts.md). [README](../../README.md) distinguishes available S00/S01 commands from planned later-stage commands.

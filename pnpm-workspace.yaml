@@ -23,3 +23,5 @@ strictPeerDependencies: true
 verifyDepsBeforeRun: false
 allowBuilds:
   '@parcel/watcher': true
+  '@prisma/engines': true
+  prisma: true

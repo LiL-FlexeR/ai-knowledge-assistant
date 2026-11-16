@@ -16,7 +16,7 @@ async function bootstrap(): Promise<void> {
   configureHttp(app);
   app.enableShutdownHooks();
   const config = app.get<Environment>(API_CONFIG);
-  await app.listen(config.API_PORT, '127.0.0.1');
+  await app.listen(config.API_PORT, config.API_HOST);
 }
 
 void bootstrap().catch((error: unknown) => {

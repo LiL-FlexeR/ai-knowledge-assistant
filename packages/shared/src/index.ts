@@ -8,6 +8,18 @@ export const successEnvelopeSchema = <T extends z.ZodType>(data: T) =>
 
 export const healthResponseSchema = successEnvelopeSchema(healthSchema);
 
+export const readinessSchema = z.strictObject({
+  status: z.literal('ready'),
+  checks: z.strictObject({
+    database: z.literal('ok'),
+    storage: z.literal('ok'),
+    embeddingProfile: z.literal('ok'),
+    aiConfiguration: z.enum(['ok', 'disabled']),
+  }),
+});
+export type Readiness = z.infer<typeof readinessSchema>;
+export const readinessResponseSchema = successEnvelopeSchema(readinessSchema);
+
 export const errorResponseSchema = z.strictObject({
   error: z.strictObject({
     code: z.string().min(1),

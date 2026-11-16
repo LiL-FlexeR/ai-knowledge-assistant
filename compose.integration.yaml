@@ -1,0 +1,23 @@
+# Used only by scripts/test-integration.mjs with a unique project and credentials.
+# tmpfs plus `down` gives an empty database on every run without deleting volumes.
+services:
+  db-test:
+    image: pgvector/pgvector:0.8.7-pg18-bookworm@sha256:38681dc6eaf55308e2a4c6de392d131652dcfac70e1263e35cd9b5ea3fe39782
+    environment:
+      POSTGRES_DB: ${AKA_TEST_DATABASE:?Owned test database required}
+      POSTGRES_USER: aka_test_migrator
+      POSTGRES_PASSWORD: ${AKA_TEST_PASSWORD:?Ephemeral test password required}
+      RUNTIME_DB_PASSWORD: ${AKA_TEST_RUNTIME_PASSWORD:?Ephemeral runtime password required}
+    ports:
+      - '127.0.0.1::5432'
+    tmpfs:
+      - /var/lib/postgresql
+    volumes:
+      - ./infra/postgres/init-runtime.sh:/docker-entrypoint-initdb.d/10-runtime.sh:ro
+    healthcheck:
+      test:
+        ['CMD-SHELL', 'pg_isready -U "$${POSTGRES_USER}" -d "$${POSTGRES_DB}"']
+      interval: 1s
+      timeout: 3s
+      retries: 30
+      start_period: 5s

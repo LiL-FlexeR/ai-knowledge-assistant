@@ -1,6 +1,6 @@
 # Requirements
 
-The document/RAG requirements below remain planned. S00 verifies the liveness portion of FR-09 and initial workspace/configuration aspects of NFR-01/04/05/06; none of those broader requirements is complete yet. Architectural defaults and public DTOs are authoritative in [system overview](../architecture/system-overview.md) and [API contracts](../architecture/api-contracts.md).
+The document/RAG requirements below remain planned. S00–S01 verify health contracts, initial workspace/configuration, local infrastructure reproducibility, and database/vector integrity primitives in FR-09 and NFR-01/03/04/05/06; none of those broader requirements is complete yet. Architectural defaults and public DTOs are authoritative in [system overview](../architecture/system-overview.md) and [API contracts](../architecture/api-contracts.md).
 
 ## Functional requirements
 

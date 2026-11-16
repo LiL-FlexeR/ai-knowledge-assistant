@@ -1,0 +1,105 @@
+name: ai-knowledge-assistant
+
+services:
+  db:
+    image: pgvector/pgvector:0.8.7-pg18-bookworm@sha256:38681dc6eaf55308e2a4c6de392d131652dcfac70e1263e35cd9b5ea3fe39782
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: aka
+      POSTGRES_USER: aka_migrator
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in root .env}
+      RUNTIME_DB_PASSWORD: ${RUNTIME_DB_PASSWORD:?Set RUNTIME_DB_PASSWORD in root .env}
+    ports:
+      - '127.0.0.1:${DB_PORT:-5432}:5432'
+    volumes:
+      - database:/var/lib/postgresql
+      - ./infra/postgres/init-runtime.sh:/docker-entrypoint-initdb.d/10-runtime.sh:ro
+    healthcheck:
+      test:
+        ['CMD-SHELL', 'pg_isready -U "$${POSTGRES_USER}" -d "$${POSTGRES_DB}"']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+
+  migrate:
+    profiles: [tools]
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+      target: migration
+    environment:
+      MIGRATION_DATABASE_URL: postgresql://aka_migrator:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}@db:5432/aka
+    depends_on:
+      db:
+        condition: service_healthy
+    command: ['pnpm', 'db:migrate']
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+      target: runtime
+    restart: unless-stopped
+    init: true
+    environment:
+      NODE_ENV: production
+      API_HOST: 0.0.0.0
+      API_PORT: 3001
+      DATABASE_URL: postgresql://aka_runtime:${RUNTIME_DB_PASSWORD:?Set RUNTIME_DB_PASSWORD}@db:5432/aka
+      STORAGE_ROOT: /data/documents
+      WEB_ORIGIN: http://localhost:${PORT:-3000}
+      OPENAI_EMBEDDING_MODEL: ${OPENAI_EMBEDDING_MODEL:-text-embedding-3-small}
+      EMBEDDING_DIMENSIONS: ${EMBEDDING_DIMENSIONS:-1536}
+      EMBEDDING_PROFILE_ID: ${EMBEDDING_PROFILE_ID:-openai-small-1536-v1}
+      PIPELINE_VERSION: ${PIPELINE_VERSION:-v1}
+    ports:
+      - '127.0.0.1:${API_PORT:-3001}:3001'
+    volumes:
+      - originals:/data/documents
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          'fetch("http://127.0.0.1:3001/api/health/ready").then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))',
+        ]
+      interval: 5s
+      timeout: 8s
+      retries: 5
+      start_period: 15s
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    restart: unless-stopped
+    init: true
+    environment:
+      NODE_ENV: production
+      API_INTERNAL_URL: http://api:3001
+    ports:
+      - '127.0.0.1:${PORT:-3000}:3000'
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          'fetch("http://127.0.0.1:3000/").then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))',
+        ]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
+
+volumes:
+  database:
+  originals:

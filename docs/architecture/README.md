@@ -1,6 +1,6 @@
 # Architecture guide
 
-These documents specify target behavior. S00 implements the workspace, liveness/configuration/error foundation, and minimal web shell; database and document/RAG runtime behavior remain planned.
+These documents specify target behavior. S00–S01 implement the workspace, liveness/readiness/configuration/error foundation, minimal web shell, local Compose runtime, and Prisma/pgvector persistence primitives. Document APIs and RAG runtime behavior remain planned.
 
 | Document | Owns |
 | --- | --- |
@@ -12,6 +12,6 @@ These documents specify target behavior. S00 implements the workspace, liveness/
 | [Security](security.md) | Local MVP controls, privacy, reliability limitations |
 | [Testing strategy](testing-strategy.md) | Deterministic checks and measured AI evaluation |
 
-Accepted planning decisions: [ADR-001 stack](decisions/ADR-001-technology-stack.md), [ADR-002 RAG](decisions/ADR-002-rag-design.md), [ADR-003 storage](decisions/ADR-003-data-storage.md). Accepted means selected for implementation, not implemented or proven.
+Accepted decisions: [ADR-001 stack](decisions/ADR-001-technology-stack.md), [ADR-002 RAG](decisions/ADR-002-rag-design.md), [ADR-003 storage](decisions/ADR-003-data-storage.md). Each record distinguishes selected behavior from the portions implemented and verified; acceptance alone is not completion evidence.
 
 Read [product requirements](../product/requirements.md) for user outcomes and [the roadmap](../features/ROADMAP.md) for execution order. Public contracts take precedence over illustrative examples; changes require updating their consumers and relevant stage documents together.

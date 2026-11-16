@@ -43,6 +43,7 @@ describe('API environment boundary', () => {
   it.each([
     ['API_PORT', '0'],
     ['API_PORT', '65536'],
+    ['API_HOST', 'public.example.com'],
     ['PORT', '65536'],
     ['API_PORT', '3001.5'],
     ['API_PORT', ''],

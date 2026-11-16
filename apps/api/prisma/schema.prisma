@@ -1,0 +1,62 @@
+generator client {
+  provider     = "prisma-client"
+  output       = "../src/generated/prisma"
+  moduleFormat = "cjs"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum DocumentStatus {
+  pending
+  processing
+  ready
+  failed
+  deleting
+
+  @@map("document_status")
+}
+
+model Document {
+  id                  String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  filename            String          @db.VarChar(255)
+  mimeType            String          @map("mime_type")
+  size                Int
+  status              DocumentStatus  @default(pending)
+  storagePath         String          @unique @map("storage_path")
+  extractedContent    String?         @map("extracted_content")
+  sourceMap           Json?           @map("source_map") @db.JsonB
+  chunkCount          Int             @default(0) @map("chunk_count")
+  embeddingProfileId  String?         @map("embedding_profile_id")
+  embeddingModel      String?         @map("embedding_model")
+  embeddingDimensions Int?            @map("embedding_dimensions")
+  pipelineVersion     String?         @map("pipeline_version")
+  processingRunId     String          @map("processing_run_id") @db.Uuid
+  processingStartedAt DateTime?       @map("processing_started_at") @db.Timestamptz(3)
+  processedAt         DateTime?       @map("processed_at") @db.Timestamptz(3)
+  processingError     Json?           @map("processing_error") @db.JsonB
+  createdAt           DateTime        @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt           DateTime        @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+  chunks              DocumentChunk[]
+
+  @@index([createdAt(sort: Desc), id(sort: Desc)])
+  @@index([status, createdAt, id])
+  @@map("documents")
+}
+
+model DocumentChunk {
+  id              String                      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  documentId      String                      @map("document_id") @db.Uuid
+  processingRunId String                      @map("processing_run_id") @db.Uuid
+  content         String
+  chunkIndex      Int                         @map("chunk_index")
+  tokenCount      Int                         @map("token_count")
+  sourceLocation  Json                        @map("source_location") @db.JsonB
+  embedding       Unsupported("vector(1536)")
+  createdAt       DateTime                    @default(now()) @map("created_at") @db.Timestamptz(3)
+  document        Document                    @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  @@unique([documentId, chunkIndex])
+  @@map("document_chunks")
+}

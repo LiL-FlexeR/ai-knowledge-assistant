@@ -33,6 +33,7 @@ export const environmentSchema = z
       .enum(['development', 'test', 'production'])
       .default('development'),
     API_PORT: integer(3001, 65535),
+    API_HOST: z.enum(['127.0.0.1', '0.0.0.0']).default('127.0.0.1'),
     PORT: integer(3000, 65535),
     WEB_ORIGIN: localOrigin.default('http://localhost:3000'),
     API_INTERNAL_URL: z

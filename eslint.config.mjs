@@ -22,6 +22,7 @@ export default [
       '**/next-env.d.ts',
       '**/coverage/**',
       '.local/**',
+      '**/src/generated/**',
     ],
   },
   ...tseslint.config(js.configs.recommended, tseslint.configs.recommended, {

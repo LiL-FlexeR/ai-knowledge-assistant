@@ -1,6 +1,6 @@
 # Product documentation
 
-AI Knowledge Assistant's document/RAG capabilities remain planned. S00 implements workspace tooling, API liveness/configuration, and a minimal web shell. These documents describe the intended local MVP and the evidence required to call it complete.
+AI Knowledge Assistant's document/RAG capabilities remain planned. S00–S01 implement workspace tooling, API liveness/readiness/configuration, a minimal web shell, and local Prisma/PostgreSQL/pgvector infrastructure. These documents describe the intended local MVP and the evidence required to call it complete.
 
 - [Product vision](product-vision.md): problem, users, value, core journey.
 - [Requirements](requirements.md): traceable functional/non-functional requirements.

@@ -10,6 +10,7 @@ import type {
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import type { Request, Response, NextFunction } from 'express';
 import { map } from 'rxjs';
+import { ReadinessUnavailable } from './health/readiness.service';
 
 function requestId(response: Response): string {
   return String(response.getHeader('X-Request-Id'));
@@ -41,10 +42,20 @@ class SafeExceptionFilter implements ExceptionFilter {
       },
     };
     response.status(status).json({
-      error: errors[status] ?? {
-        code: 'INTERNAL_ERROR',
-        message: 'An unexpected error occurred.',
-      },
+      error:
+        exception instanceof ReadinessUnavailable
+          ? {
+              code: 'SERVICE_UNAVAILABLE',
+              message: 'Service dependencies are not ready.',
+              details: exception.failedChecks.map((path) => ({
+                path,
+                message: 'Check failed.',
+              })),
+            }
+          : (errors[status] ?? {
+              code: 'INTERNAL_ERROR',
+              message: 'An unexpected error occurred.',
+            }),
       requestId: requestId(response),
     });
   }

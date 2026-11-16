@@ -2,7 +2,7 @@
 
 A planned document question-answering application using Retrieval-Augmented Generation (RAG). Upload PDF, TXT, or Markdown files, search their content, and ask questions with references to the supporting passages.
 
-**Status: S00 — Project Setup implemented and verified.** The pnpm workspace runs a NestJS liveness API and a minimal Next.js shell. Configuration validation, safe error envelopes, browser-safe shared schemas, and quality commands are implemented. Database/Compose, document management, retrieval, AI, and product screens remain planned in S01–S07. See [S00 verification evidence](docs/features/stages/S00-project-setup.md#verification-evidence).
+**Status: S00–S01 implemented and verified.** The workspace provides API liveness/readiness, a minimal Next.js shell, local Compose services, reviewed Prisma migrations, and real PostgreSQL/pgvector storage primitives. Document management, ingestion, retrieval, AI, and product screens remain planned in S02–S07. See [S01 verification evidence](docs/features/stages/S01-database-and-infrastructure.md#verification-evidence).
 
 ## Problem and planned features
 
@@ -51,7 +51,7 @@ Documentation lives in `docs/` and root `AGENTS.md`; installed project-local ski
 
 ```text
 apps/
-  api/                 # NestJS liveness/config/HTTP foundation; Prisma planned S01
+  api/                 # NestJS health/config/database infrastructure and Prisma schema
   web/                 # Next.js App Router setup shell; product screens planned S06
 packages/
   shared/              # Public DTO schemas/types only
@@ -72,27 +72,50 @@ Follow the [skill selection and precedence rules](AGENTS.md#agent-skills): read 
 
 ## Local setup
 
-Install Node.js **24.22.3** (also recorded in `.node-version`) and pnpm **12.21.0**. For example, after selecting Node with your runtime manager, install pnpm with `npm install --global pnpm@12.21.0`. Docker, database credentials, and an OpenAI key are unnecessary for S00.
+Install Node.js **24.22.3**, pnpm **12.21.0**, and Docker with Compose. Node/pnpm are also pinned in the repository. S01 needs no OpenAI key. PostgreSQL **18.7** with pgvector **0.8.7** and Node images are pinned by immutable digest; Prisma CLI/client/adapter are **7.10.1**, with `pg` **8.23.1**. [ADR-003](docs/architecture/decisions/ADR-003-data-storage.md#s01-implementation-and-compatibility) records the stable-version selection and compatibility evidence.
+
+For host development:
 
 ```bash
 pnpm install --frozen-lockfile
 cp .env.example .env
+# Fill the local credentials and host URLs described below before infra:up.
+pnpm infra:up
+pnpm db:generate
+pnpm db:migrate
 pnpm dev
+curl -i http://localhost:3001/api/health/ready
 ```
 
-Copying `.env.example` is optional for S00; its blank database/AI placeholders are valid. Open `http://localhost:3000` and call `curl -i http://localhost:3001/api/health`. Liveness returns `{"data":{"status":"ok"},"requestId":"<generated UUID>"}` with the same ID in `X-Request-Id`. Unknown routes, including readiness, return a safe 404 envelope. Both servers bind to `127.0.0.1`. Stop development with Ctrl-C; the process runner stops sibling watchers when a command exits.
+In private root `.env`, set separate `POSTGRES_PASSWORD` and `RUNTIME_DB_PASSWORD` values (for example, generate each with `openssl rand -hex 24`). Set `DATABASE_URL=postgresql://aka_runtime:<runtime-password>@127.0.0.1:5432/aka` and `MIGRATION_DATABASE_URL=postgresql://aka_migrator:<migration-password>@127.0.0.1:5432/aka`, substituting the matching passwords. Use URL-safe hex or percent-encode password characters. `infra:up` starts only the database. Its empty-volume bootstrap creates the runtime role; the reviewed migration grants data access only to the two entity tables. The privileged migrator creates extensions/schema and owns the migration ledger; its URL is never supplied to the API container.
 
-If web port 3000 is occupied, run `PORT=3100 WEB_ORIGIN=http://localhost:3100 pnpm dev` (or set these in root `.env`), then open `http://localhost:3100`. `API_PORT` overrides API port 3001. Root environment loading uses the launcher's file location, including when running `pnpm --filter @aka/api dev` or `pnpm --filter @aka/web dev`; exported shell variables take precedence. After installation, root `pnpm dev` builds shared contracts before starting watchers. For an individual app, run `pnpm --filter @aka/shared build` first.
+Open `http://localhost:3000`. Liveness `/api/health` returns `{"data":{"status":"ok"},"requestId":"<UUID>"}`. Readiness returns database/storage/profile checks and `aiConfiguration: "disabled"`; faults return a safe 503 envelope identifying check names. Without a database URL, liveness still runs and readiness returns 503. No health endpoint calls AI. Default host storage is `<repo>/.local/documents`, created privately on the first readiness probe and never served statically.
 
-After `pnpm build`, `pnpm --filter @aka/api start` and `pnpm --filter @aka/web start` run the compiled shells. pnpm scripts enforce the pinned Node runtime. pnpm dependency-script execution is explicitly limited to the selected native watcher; its optional Playwright agent-skill approval notice does not block installation or the already installed project skills.
+Host servers bind to `127.0.0.1`. If port 3000 is occupied, use `PORT=3100 WEB_ORIGIN=http://localhost:3100 pnpm dev`, or put those settings in `.env`. `API_PORT` and `DB_PORT` override host ports; update host database URLs when changing `DB_PORT`. Shell variables override root `.env`, loaded relative to the launcher even for filtered app dev/start commands. Root `dev` generates the Prisma client and builds shared contracts first; do both explicitly before running a filtered app from a fresh install. Stop with Ctrl-C.
 
-**Planned from S01:** Docker Compose, `pnpm infra:up`, migrations, database readiness, and container runtime. Host database connections will use `127.0.0.1:5432`; container API connections will use `db:5432`. See [runtime topology](docs/architecture/system-context.md). No database/AI operation is available yet.
+For the complete container runtime:
+
+```bash
+pnpm infra:up
+docker compose --profile tools run --rm --build migrate
+docker compose up --build -d --wait
+curl -i http://localhost:3001/api/health/ready
+pnpm infra:down
+```
+
+Migrations are explicit; API startup never applies them. Container API uses `db:5432` and `/data/documents`, web uses the server-only target `http://api:3001`, and containers listen internally on their interfaces. Published database/API/web ports remain loopback-only. Only API mounts the `originals` volume; PostgreSQL has its own `database` volume at `/var/lib/postgresql` for PostgreSQL 18. Normal `infra:down`, `up`, and restart preserve both volumes. Password initialization runs only on an empty database volume: editing `.env` does not rotate an existing role's password. Do not remove volumes to resolve a credential mismatch.
+
+After `pnpm build`, filtered API/web `start` commands run the compiled host apps. Docker uses a production dependency deployment for API and standalone output for web, both as non-root `node`. The optional `migrate` profile retains the CLI/OpenSSL tooling separately. Only the watcher and Prisma's selected lifecycle scripts are allowed by pnpm; its optional Playwright skills notice does not block installation.
+
+`pnpm db:migrate` deploys committed SQL. `pnpm db:migrate:dev --name <change>` uses `migrate dev --create-only`: use a disposable development database, review generated SQL, then apply it explicitly. Prisma needs a shadow database for development diffs, creating a temporary one using the local migrator's privileges unless a separate `SHADOW_DATABASE_URL` is supplied. Deploy and generation need no shadow database. Never point a shadow URL at retained application data.
+
+Keep `Unsupported("vector(1536)")` in the committed schema and the custom extension/type/check SQL in migrations. Prisma 7 introspection prints `Unsupported("vector")`, omitting dimensions, and does not model SQL CHECK constraints. Use read-only `db pull --print`; review any future introspection changes rather than overwriting this schema. Real catalog/readiness tests own dimension verification; a clean Prisma diff alone cannot establish it.
 
 ## Environment configuration
 
-The [system overview](docs/architecture/system-overview.md) owns configuration defaults. API validation is implemented for the listed settings, including integer/range bounds, overlap smaller than chunk size, absolute storage paths, and local web origins. Blank optional database/AI values are treated as absent; S00 never connects to these services or creates storage. Future feature stages add their required settings and runtime compatibility checks. Invalid settings fail startup with variable names and no values. In S00, `NEXT_PUBLIC_*` configuration is unsupported and rejected by the API.
+The [system overview](docs/architecture/system-overview.md) owns configuration defaults. API validation is implemented for the listed settings, including integer/range bounds, overlap smaller than chunk size, absolute storage paths, and local web origins. Blank database/AI values are treated as absent. S01 readiness checks the database, extension, required vector dimension, stored ready profile/model/dimensions/pipeline, and actual storage I/O. Later stages add AI operation requirements. Invalid settings fail startup with variable names and no values. `NEXT_PUBLIC_*` configuration remains unsupported and rejected by the API.
 
-Root `.env` is private and ignored; `.env.example` contains placeholders. The API and web dev/start scripts explicitly load it, with shell variables taking precedence. Quality checks do not load the private file, and tests use isolated settings. `DATABASE_URL`, `OPENAI_API_KEY`, `OPENAI_CHAT_MODEL`, `STORAGE_ROOT`, and the internal proxy target are server-only. No Next.js public configuration exports secrets. The same-origin proxy is planned for S06.
+Root `.env` is private and ignored; `.env.example` contains placeholders. The API and web dev/start scripts explicitly load it, with shell variables taking precedence. Quality checks do not load the private file, and tests use isolated settings. `DATABASE_URL`, `MIGRATION_DATABASE_URL`, local passwords, `OPENAI_API_KEY`, `OPENAI_CHAT_MODEL`, `STORAGE_ROOT`, and the internal proxy target are server-only. No Next.js public configuration exports secrets. The same-origin proxy is planned for S06.
 
 The embedding profile is initially `text-embedding-3-small`, 1,536 dimensions; generation model selection and tokenizer compatibility are verified during implementation. Changing an embedding profile requires coordinated schema/data migration, not just an environment edit.
 
@@ -103,19 +126,21 @@ The embedding profile is initially `text-embedding-3-small`, 1,536 dimensions; g
 | `pnpm dev`, `pnpm build` | Available (S00) | Run app shells; build workspaces |
 | `pnpm lint`, `pnpm typecheck`, `pnpm test` | Available (S00) | ESLint/Prettier, strict TS/browser boundary, deterministic Jest checks |
 | `pnpm format` | Available (S00) | Format application code and tooling; preserve existing documentation/skills |
-| `pnpm infra:up`, `pnpm infra:down` | S01 | Start/stop local PostgreSQL; preserve volumes |
-| `pnpm db:generate`, `pnpm db:migrate`, `pnpm db:migrate:dev` | S01 | Generate client, apply/create migrations |
-| `pnpm test:integration` | S01 | Isolated PostgreSQL/pgvector tests, expanded each stage |
+| `pnpm infra:up`, `pnpm infra:down` | Available (S01) | Start/stop local PostgreSQL; preserve volumes |
+| `pnpm db:generate`, `pnpm db:migrate`, `pnpm db:migrate:dev` | Available (S01) | Generate client, deploy committed SQL/create reviewable migration |
+| `pnpm test:integration` | Available (S01) | Fresh isolated PostgreSQL/pgvector tests and cleanup |
 | `pnpm test:e2e` | S06 | Mock-provider browser workflow checks |
 | `pnpm eval:offline`, `pnpm eval:live` | S07 | Deterministic fixtures; explicit paid AI evaluation |
 
-S01–S07 commands remain planned and are not defined yet. The Jest script enables Node's experimental VM modules for NestJS 12's ESM dependencies and runs serially; normal tests make no database or paid AI calls. The existing Playwright CLI remains pinned at 0.1.24. npm's old lockfile and tracked generated `node_modules` copies were replaced by the pnpm lockfile and ignore rules; installed project-local skills are preserved.
+Only S06/S07 commands in the table remain planned. The Jest script enables Node's experimental VM modules for NestJS 12's ESM dependencies and runs serially; normal tests make no database or paid AI calls. The existing Playwright CLI remains pinned at 0.1.24. npm's old lockfile and tracked generated `node_modules` copies were replaced by the pnpm lockfile and ignore rules; installed project-local skills are preserved.
 
 ## Testing and evaluation
 
 Run `pnpm lint`, `pnpm typecheck`, `pnpm test`, and `pnpm build`. S00 tests cover liveness/envelopes, generated request IDs, safe unknown-route/internal/parser errors, the JSON size limit, environment bounds/redaction, and root `.env` loading/exit propagation. Shared contracts compile independently with DOM libraries and no Node types. A clean-build secret-canary scan verified that server credentials did not enter web artifacts.
 
-Later stages will add normalization/chunking/context tests, real PostgreSQL/pgvector integration with AI fakes, browser business workflows, and synthetic AI evaluation. There are no measured RAG quality scores yet. See [testing strategy](docs/architecture/testing-strategy.md).
+`pnpm test:integration` starts a unique Compose project with the same pinned image, random credentials, a generated `aka_test_<run-id>` database, a random loopback port, tmpfs database data, and temporary storage. It refuses supplied `TEST_DATABASE_URL`/`TEST_STORAGE_ROOT` overrides, ignores normal database targets, checks ownership before writes, replays committed migrations, verifies read-only introspection and schema diff, regenerates the client, and runs real vector/constraint/privilege/readiness tests. Cleanup removes only that project and its temporary storage, including after failures; it never removes named volumes. Unit tests also verify rejected production-looking URLs/storage paths. Normal tests make no database/provider calls.
+
+Later stages will add normalization/chunking/context tests, business integration with AI fakes, browser workflows, and synthetic AI evaluation. There are no measured RAG quality scores yet. See [testing strategy](docs/architecture/testing-strategy.md).
 
 ## Roadmap and future work
 
@@ -123,4 +148,4 @@ Use the [primary execution roadmap](docs/features/ROADMAP.md): S00 setup → S01
 
 Authentication, deployment hardening, OCR, background queues, streaming, hybrid search, reranking, chat history, additional providers, versioning, S3 storage, and observability dashboards are optional [future work](docs/product/mvp-scope.md). They are not MVP infrastructure.
 
-S00 is complete; S01 is the next unimplemented stage and requires an explicit request. Agents should first read [AGENTS.md](AGENTS.md).
+S00 and S01 are complete; S02–S07 remain unimplemented and require an explicit request. Agents should first read [AGENTS.md](AGENTS.md).

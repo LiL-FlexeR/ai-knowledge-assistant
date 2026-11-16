@@ -8,3 +8,4 @@ dist/
 next-env.d.ts
 coverage/
 .local/
+apps/api/src/generated/
