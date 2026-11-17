@@ -31,9 +31,11 @@ As a user, I want to browse and delete documents so obsolete content stops influ
 
 As an API user, I want relevant passages even when I phrase the question differently from the document.
 
-- [ ] Search returns at most requested topK ranked hits, with filename, excerpt, and real page/section locations.
-- [ ] Document filters, active profile, and ready-state rules are enforced in actual pgvector queries.
-- [ ] Empty corpus or no accepted hits returns a successful insufficient-context response; provider failure returns an error.
+- [x] Search returns at most requested topK ranked hits, with filename, excerpt, and real page/section locations.
+- [x] Document filters, active profile, and ready-state rules are enforced in actual pgvector queries.
+- [x] Empty corpus or no accepted hits returns a successful insufficient-context response; provider failure returns an error.
+
+Verified with known-vector/fake-provider evidence in [S04](../features/stages/S04-semantic-retrieval.md#verification-evidence); paraphrase relevance with live embeddings remains unmeasured.
 
 ## US-05 — Ask with evidence (S05/S06)
 

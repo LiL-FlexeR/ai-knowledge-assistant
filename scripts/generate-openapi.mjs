@@ -11,6 +11,9 @@ const names = {
   DocumentResponse: contracts.documentResponseSchema,
   ReprocessResponse: contracts.reprocessResponseSchema,
   SourceLocation: contracts.sourceLocationSchema,
+  Source: contracts.sourceSchema,
+  SearchRequest: contracts.searchRequestSchema,
+  SearchResponse: contracts.searchResponseSchema,
   DocumentListResponse: contracts.documentListResponseSchema,
   ErrorResponse: contracts.errorResponseSchema,
   HealthResponse: contracts.healthResponseSchema,
@@ -98,9 +101,9 @@ const output = {
   openapi: '3.1.0',
   info: {
     title: 'AI Knowledge Assistant local API',
-    version: '0.3.0',
+    version: '0.4.0',
     description:
-      'Implemented through S03. Pending uploads are processed into complete source-aware vector generations when AI is configured. Reprocess may incur embedding cost. Search/chat and original download endpoints are unavailable. Local single API process only.',
+      'Implemented through S04. Pending uploads become complete source-aware vector generations when AI is configured. Exact semantic search returns stored passages and source locations. Reprocess/search may incur embedding cost. Chat and original downloads remain unavailable. Local single API process only.',
   },
   servers: [{ url: 'http://127.0.0.1:3001/api' }],
   paths: {
@@ -117,6 +120,105 @@ const output = {
             'Local dependencies and AI configuration are ready; no paid health calls.',
           ),
           ...responses(503),
+        },
+      },
+    },
+    '/search': {
+      post: {
+        summary: 'Search ready passages by exact cosine similarity',
+        description:
+          'JSON only; no query parameters. Trimmed query: 1–2000 UTF-16 characters and at most 512 cl100k_base tokens. topK defaults to configured 5, range 1–10. Optional documentIds: 1–20 unique existing UUIDs. Ready/profile/current-run and document filters apply before limiting, then the provisional configured similarity cutoff (default 0.30) applies. Scores rank passages, not factual confidence. No eligible documents skips embedding. Each socket client is limited to 10 searches/minute (configurable downward); full shared AI capacity returns immediate 429. Whole search uses ASK_TIMEOUT_MS (default 65000), including database checks and provider retries. Plain-text excerpts contain at most 1000 UTF-16 characters at Unicode boundaries; locations identify full chunks.',
+        requestBody: {
+          required: true,
+          content: json('SearchRequest', {
+            query: 'maintenance window',
+            topK: 5,
+          }),
+        },
+        responses: {
+          200: {
+            ...success(
+              'SearchResponse',
+              'Ranked passages or an explicit successful evidence limitation.',
+            ),
+            content: {
+              'application/json': {
+                schema: ref('SearchResponse'),
+                examples: {
+                  results: {
+                    value: {
+                      data: {
+                        status: 'results',
+                        reason: null,
+                        results: [
+                          {
+                            chunkId: requestId,
+                            chunkIndex: 0,
+                            similarity: 0.75,
+                            source: {
+                              documentId: exampleDocument.id,
+                              filename: 'policy.md',
+                              location: {
+                                kind: 'markdown',
+                                unitIndex: 0,
+                                sectionOrdinal: 1,
+                                headingPath: ['Operations'],
+                                lineStart: 1,
+                                lineEnd: 2,
+                                charStart: 0,
+                                charEnd: 48,
+                              },
+                              excerpt:
+                                '# Operations\nMaintenance is Sunday at 02:00 UTC.',
+                            },
+                          },
+                        ],
+                      },
+                      requestId,
+                    },
+                  },
+                  noReady: {
+                    value: {
+                      data: {
+                        status: 'insufficient_context',
+                        reason: 'NO_READY_DOCUMENTS',
+                        results: [],
+                      },
+                      requestId,
+                    },
+                  },
+                  noRelevant: {
+                    value: {
+                      data: {
+                        status: 'insufficient_context',
+                        reason: 'NO_RELEVANT_CONTEXT',
+                        results: [],
+                      },
+                      requestId,
+                    },
+                  },
+                },
+              },
+            },
+          },
+          ...responses(400, 403, 404, 413),
+          429: {
+            ...errors[429],
+            description:
+              'RATE_LIMITED or AI_CAPACITY_EXCEEDED. Retry-After is always present.',
+          },
+          502: error(
+            'AI_UPSTREAM_ERROR',
+            'AI_UPSTREAM_ERROR for provider failure; AI_OUTPUT_INVALID for an invalid query embedding.',
+          ),
+          503: error(
+            'AI_NOT_CONFIGURED',
+            'AI_NOT_CONFIGURED, EMBEDDING_PROFILE_MISMATCH, or SERVICE_UNAVAILABLE. Failures never become empty evidence.',
+          ),
+          504: error(
+            'AI_TIMEOUT',
+            'Search exceeded its deadline or a provider attempt timed out.',
+          ),
         },
       },
     },

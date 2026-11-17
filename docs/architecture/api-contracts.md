@@ -1,6 +1,6 @@
 # REST API contracts
 
-S03 implements health, upload/list/detail/delete, background ingestion, and reprocess. Generated [OpenAPI 3.1](openapi.json) uses the browser-safe shared response schemas and includes the multipart request schema, response examples, statuses, reusable errors, and admission limits. Regenerate with `pnpm api:openapi`; `pnpm test` checks for drift. Search and ask below remain planned for S04–S05. No Swagger UI or public file route is installed.
+S04 implements health, upload/list/detail/delete, background ingestion, reprocess, and semantic search. Generated [OpenAPI 3.1](openapi.json) uses the browser-safe shared response schemas and includes the multipart request schema, response examples, statuses, reusable errors, and admission limits. Regenerate with `pnpm api:openapi`; `pnpm test` checks for drift. Ask remains planned for S05. No Swagger UI or public file route is installed.
 
 ## Conventions
 
@@ -96,9 +96,11 @@ Request DTO:
 {"query": "What is the maintenance window?", "topK": 5, "documentIds": ["11111111-1111-4111-8111-111111111111"]}
 ```
 
-`query` required, 1–2000 trimmed characters and ≤512 tokens; `topK` optional integer 1–10, default 5; `documentIds` optional. No client-supplied similarity threshold or provider model.
+`query` required, 1–2000 trimmed UTF-16 characters and ≤512 `cl100k_base` tokens; reject unpaired surrogates. `topK` optional integer 1–10, default configured `RETRIEVAL_TOP_K` (5); `documentIds` optional, with case-insensitive UUID uniqueness. Character/token/rate caps may be lowered. No client-supplied similarity threshold or provider model. Require JSON with no URL query fields. Validate filters and database/profile compatibility before checking the eligible corpus; an empty corpus skips both AI configuration and embedding. A missing key with eligible evidence returns 503.
 
 200 SearchResponse: `{status: "results" | "insufficient_context", reason: null | "NO_READY_DOCUMENTS" | "NO_RELEVANT_CONTEXT", results: SearchHit[]}`. A hit is `{chunkId: UUID, chunkIndex: number, similarity: number, source: SourceDTO}`. Results are similarity-descending with deterministic UUID ties. Empty results always produce insufficient_context and a reason; nonempty results produce results/null. Similarity is cosine `1 - distance` in [-1,1], not probability. Sources are the persisted location plus server excerpt; no model generation.
+
+Search allows `SEARCH_REQUESTS_PER_MINUTE` (default 10) per socket client in a fixed 60-second window. A full shared outbound semaphore immediately returns 429 `AI_CAPACITY_EXCEEDED`; the rate window returns 429 `RATE_LIMITED`. Both include `Retry-After`. `ASK_TIMEOUT_MS` (default 65000) bounds the whole search, including database checks, embedding and retries; client disconnect cancels provider work. Existing per-attempt timeouts and bounded retries apply.
 
 400 validation; 404 unknown document filter; 429 rate limit/AI capacity; 502 `AI_UPSTREAM_ERROR`/`AI_OUTPUT_INVALID`; 503 `AI_NOT_CONFIGURED`, `EMBEDDING_PROFILE_MISMATCH`, or `SERVICE_UNAVAILABLE`; 504 `AI_TIMEOUT`. Search never treats an upstream failure as empty evidence.
 

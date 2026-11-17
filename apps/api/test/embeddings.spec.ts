@@ -234,3 +234,29 @@ it('bounds the full attempt even when the SDK promise ignores cancellation', asy
     ),
   ).rejects.toMatchObject({ code: 'AI_TIMEOUT' });
 });
+it('rejects interactive embeddings immediately when shared outbound capacity is full', async () => {
+  const capacity = new AiCapacity({ ...config, AI_MAX_CONCURRENT_REQUESTS: 1 });
+  let release!: () => void;
+  const active = capacity.run(
+    new AbortController().signal,
+    () =>
+      new Promise<void>((resolve) => {
+        release = resolve;
+      }),
+  );
+  const create = jest.spyOn(Embeddings.prototype, 'create');
+  try {
+    await expect(
+      new OpenAIEmbeddingClient(config, capacity).embed(
+        inputs,
+        new AbortController().signal,
+        Date.now() + 65000,
+        { waitForCapacity: false },
+      ),
+    ).rejects.toMatchObject({ code: 'AI_CAPACITY_EXCEEDED' });
+    expect(create).not.toHaveBeenCalled();
+  } finally {
+    release();
+    await active;
+  }
+});

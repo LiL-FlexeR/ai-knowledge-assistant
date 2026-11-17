@@ -2,7 +2,7 @@
 
 A planned document question-answering application using Retrieval-Augmented Generation (RAG). Upload PDF, TXT, or Markdown files, search their content, and ask questions with references to the supporting passages.
 
-**Status: S00–S03 implemented and verified.** The workspace provides API liveness/readiness, a minimal Next.js shell, local Compose services, reviewed Prisma migrations, PostgreSQL/pgvector primitives, and private document upload/list/detail/delete with quotas and retryable cleanup. S03 adds bounded source-aware extraction/chunking, OpenAI embeddings, atomic vector publication, restart recovery and manual reprocessing. Retrieval, question answering and product screens remain planned in S04–S07. See [S03 verification evidence](docs/features/stages/S03-document-ingestion.md#verification-evidence).
+**Status: S00–S04 implemented and verified.** The workspace provides API liveness/readiness, a minimal Next.js shell, local Compose services, reviewed Prisma migrations, PostgreSQL/pgvector primitives, and private document upload/list/detail/delete with quotas and retryable cleanup. S03 adds bounded source-aware extraction/chunking, OpenAI embeddings, atomic vector publication, restart recovery and manual reprocessing. S04 adds exact semantic search over ready/profile-compatible generations with stored source locations and explicit evidence limitations. Question answering and product screens remain planned in S05–S07. See [S04 verification evidence](docs/features/stages/S04-semantic-retrieval.md#verification-evidence).
 
 ## Problem and planned features
 
@@ -51,7 +51,7 @@ Documentation lives in `docs/` and root `AGENTS.md`; installed project-local ski
 
 ```text
 apps/
-  api/                 # NestJS health/config/database/documents/ingestion/ai and Prisma schema
+  api/                 # NestJS health/config/database/documents/ingestion/ai/retrieval and Prisma schema
   web/                 # Next.js App Router setup shell; product screens planned S06
 packages/
   shared/              # Public DTO schemas/types only
@@ -93,7 +93,7 @@ Open `http://localhost:3000`. Liveness `/api/health` returns `{"data":{"status":
 
 Host servers bind to `127.0.0.1`. If port 3000 is occupied, use `PORT=3100 WEB_ORIGIN=http://localhost:3100 pnpm dev`, or put those settings in `.env`. `API_PORT` and `DB_PORT` override host ports; update host database URLs when changing `DB_PORT`. Shell variables override root `.env`, loaded relative to the launcher even for filtered app dev/start commands. Root `dev` generates the Prisma client and builds shared contracts first; do both explicitly before running a filtered app from a fresh install. Stop with Ctrl-C.
 
-For the complete container runtime, set `OPENAI_API_KEY` in private root `.env` first. Canonical chunk text is sent to OpenAI for embeddings, including on reprocess. Then:
+For the complete container runtime, set `OPENAI_API_KEY` in private root `.env` first. Canonical chunk text and search queries are sent to OpenAI for embeddings, including on reprocess. Then:
 
 ```bash
 pnpm infra:up
@@ -127,13 +127,13 @@ curl -i -X DELETE 'http://localhost:3001/api/documents/<id>'
 curl -i -X DELETE 'http://localhost:3001/api/documents/<id>'
 ```
 
-Use a quoted URL after substituting the UUID; `<id>` is an illustrative placeholder. Upload exactly one `file` and no other fields. PDF, UTF-8 TXT, `.md` and `.markdown` are supported, with server-verified bytes and canonical MIME. The API returns 201 with `Location` and pending metadata after storing the original; a single scanner processes oldest pending rows when AI is configured. At most five pending/processing documents are admitted. Poll detail for ready/failed; without a key delete pending uploads to free capacity. Search, chat and product UI arrive in S04–S06.
+Use a quoted URL after substituting the UUID; `<id>` is an illustrative placeholder. Upload exactly one `file` and no other fields. PDF, UTF-8 TXT, `.md` and `.markdown` are supported, with server-verified bytes and canonical MIME. The API returns 201 with `Location` and pending metadata after storing the original; a single scanner processes oldest pending rows when AI is configured. At most five pending/processing documents are admitted. Poll detail for ready/failed; without a key delete pending uploads to free capacity. Search is available through the REST route below; chat and product UI remain S05–S06.
 
 Defaults are 10 MiB/file, two simultaneous streams, a 60-second receipt/validation deadline, 100 documents/200 MiB retained originals, and 10 upload/reprocess requests combined or 120 list/detail/delete requests per client per minute. Settings may be lowered in `.env`; 429 includes `Retry-After`. Mutations accept the exact `WEB_ORIGIN` when an Origin header is present; curl may omit it. GET pagination supports `status` and a signed cursor bound to that filter; cursors expire on API restart.
 
 Generated originals and staging files stay under private `STORAGE_ROOT`, outside web/static directories. DELETE invalidates evidence, removes the original and metadata, and returns empty 204 only after cleanup; repeated deletion is safe. A cleanup failure returns 500/`DELETE_FAILED` and leaves an inspectable deleting row for retry. Startup/hourly reconciliation retries deleting rows and removes only generated, unreferenced files older than an hour, skipping symlinks and unknown paths. Storage faults and crashes may delay compensation until reconciliation; this is logical deletion, not secure physical erasure. No file download route exists.
 
-See [REST contracts](docs/architecture/api-contracts.md), [generated OpenAPI](docs/architecture/openapi.json), and [S02 verification evidence](docs/features/stages/S02-document-management.md#verification-evidence). `pnpm test:integration` performs both document-management and S03 ingestion curl workflows against disposable database/storage with fake embeddings, plus controlled failure/race tests.
+See [REST contracts](docs/architecture/api-contracts.md), [generated OpenAPI](docs/architecture/openapi.json), and [S02 verification evidence](docs/features/stages/S02-document-management.md#verification-evidence). `pnpm test:integration` performs document-management, ingestion and search curl workflows against disposable database/storage with fake embeddings, plus controlled failure/race tests.
 
 ## Processing limits and limitations (S03)
 
@@ -144,6 +144,21 @@ Extraction, normalization, token counting and chunking run in a terminable worke
 Embeddings use `text-embedding-3-small`, explicit 1536 dimensions and profile `openai-small-1536-v1`. Batches are bounded by both 32 chunks and the provider token cap, with a shared two-call semaphore. Per-attempt/whole-run deadlines are 20/180 seconds. Up to two eligible transport retries use bounded backoff; SDK retries are disabled. Authentication/format/invalid-output errors do not retry. Failure retains the original and no partial indexed generation. Restart marks interrupted runs failed; pending resumes. Delete/shutdown abort active work; run IDs reject late publication. No failed document is automatically re-embedded.
 
 `POST /api/documents/:id/reprocess` returns 202/pending for ready/failed documents with readable originals and capacity. It clears the old generation before scheduling another, preserving original metadata. Busy, missing-original and capacity faults return documented 409 errors. Each reprocess may incur embedding costs. Required checks use fake AI; paid live embedding smoke and semantic-quality evaluation were not run.
+
+## Semantic search API (S04)
+
+After a synthetic upload reaches ready:
+
+```bash
+curl -i -H 'Content-Type: application/json' \
+  -d '{"query":"maintenance window","topK":5}' \
+  http://localhost:3001/api/search
+# To restrict the corpus, add "documentIds":["<existing-document-uuid>"].
+```
+
+Search returns passages with chunk IDs, cosine similarities and stored filenames/page or section/line locations. Excerpts contain at most 1000 UTF-16 characters at Unicode boundaries; locations refer to the full chunk. No answer is generated. Queries are trimmed and bounded by 2000 characters/512 `cl100k_base` tokens; topK is 1–10, default configured 5. Exact pgvector queries apply ready/profile/model/dimension/pipeline/current-run/document filters before limiting. The configured 0.30 similarity cutoff is provisional: scores rank passages and do not measure factual confidence or guarantee relevance.
+
+An empty eligible corpus returns 200/`insufficient_context`/`NO_READY_DOCUMENTS` without embedding; candidates below the cutoff return `NO_RELEVANT_CONTEXT`. Unknown document filters return 404. Missing AI, incompatible profiles, storage faults and provider errors remain distinct errors. Search uses `SEARCH_REQUESTS_PER_MINUTE` (10 by default), the shared two-call AI capacity and the whole-operation `ASK_TIMEOUT_MS` (65000 by default). Full AI capacity returns immediate 429 with Retry-After; disconnect aborts provider work. Queries can incur embedding cost. Host settings load from root `.env`; Compose tuning requires explicit API environment overrides. Required tests/curl demos use fake AI; live semantic quality and the cutoff are uncalibrated.
 
 ## Environment configuration
 
@@ -163,7 +178,7 @@ The embedding profile is initially `text-embedding-3-small`, 1,536 dimensions; S
 | `pnpm infra:up`, `pnpm infra:down` | Available (S01) | Start/stop local PostgreSQL; preserve volumes |
 | `pnpm db:generate`, `pnpm db:migrate`, `pnpm db:migrate:dev` | Available (S01) | Generate client, deploy committed SQL/create reviewable migration |
 | `pnpm test:integration` | Available (S01) | Fresh isolated PostgreSQL/pgvector tests and cleanup |
-| `pnpm api:openapi` | Available (S02) | Regenerate implemented health/document OpenAPI from shared schemas; `pnpm test` checks drift |
+| `pnpm api:openapi` | Available (S02) | Regenerate implemented health/document/search OpenAPI from shared schemas; `pnpm test` checks drift |
 | `pnpm test:e2e` | S06 | Mock-provider browser workflow checks |
 | `pnpm eval:offline`, `pnpm eval:live` | S07 | Deterministic fixtures; explicit paid AI evaluation |
 
@@ -175,7 +190,7 @@ Run `pnpm lint`, `pnpm typecheck`, `pnpm test`, and `pnpm build`. S00 tests cove
 
 `pnpm test:integration` starts a unique Compose project with the same pinned image, random credentials, a generated `aka_test_<run-id>` database, a random loopback port, tmpfs database data, and temporary storage. It refuses supplied `TEST_DATABASE_URL`/`TEST_STORAGE_ROOT` overrides, ignores normal database targets, checks ownership before writes, replays committed migrations, verifies read-only introspection and schema diff, regenerates the client, and runs real vector/constraint/privilege/readiness and document lifecycle tests. S02 covers supported/invalid uploads, private storage, quota races, stable pagination, safe errors, deletion fencing/compensation/retry, cleanup, admission and stream disconnect/deadline handling; the harness builds the API and runs a curl REST demo too. Cleanup removes only that project and its temporary storage, including after failures; it never removes named volumes. Unit tests also verify rejected production-looking URLs/storage paths and document format/name/path/quota/cursor rules. Normal tests make no database/provider calls and check generated OpenAPI for drift.
 
-S03 adds canonical source/Unicode/chunk tests, real PDF worker fixtures, embedding validation/retry/deadline/semaphore tests, real-database atomic publication/rollback/reprocess/restart/delete races, and a curl processing demo with fake AI. Later stages add retrieval/context/answer tests, browser workflows and semantic evaluation. There are no measured RAG quality scores yet. See [testing strategy](docs/architecture/testing-strategy.md).
+S03 adds canonical source/Unicode/chunk tests, real PDF worker fixtures, embedding validation/retry/deadline/semaphore tests, real-database atomic publication/rollback/reprocess/restart/delete races, and a curl processing demo with fake AI. S04 adds query/source/error/admission tests, actual cosine order/tie/cutoff/topK/profile/run/document-filter tests, canonical-source checks and curl search demos. Later stages add context/answer tests, browser workflows and semantic evaluation. There are no measured RAG quality scores yet. See [testing strategy](docs/architecture/testing-strategy.md).
 
 ## Roadmap and future work
 
@@ -183,4 +198,4 @@ Use the [primary execution roadmap](docs/features/ROADMAP.md): S00 setup → S01
 
 Authentication, deployment hardening, OCR, background queues, streaming, hybrid search, reranking, chat history, additional providers, versioning, S3 storage, and observability dashboards are optional [future work](docs/product/mvp-scope.md). They are not MVP infrastructure.
 
-S00–S03 are complete; S04–S07 remain unimplemented and require an explicit request. Agents should first read [AGENTS.md](AGENTS.md).
+S00–S04 are complete; S05–S07 remain unimplemented and require an explicit request. Agents should first read [AGENTS.md](AGENTS.md).

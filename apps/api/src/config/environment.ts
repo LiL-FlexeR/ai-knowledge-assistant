@@ -65,6 +65,7 @@ export const environmentSchema = z
     UPLOAD_TIMEOUT_MS: integer(60000),
     UPLOAD_REQUESTS_PER_MINUTE: integer(10),
     DOCUMENT_REQUESTS_PER_MINUTE: integer(120),
+    SEARCH_REQUESTS_PER_MINUTE: integer(10),
     MAX_PDF_PAGES: integer(100),
     MAX_EXTRACTED_CHARS: integer(500000),
     MAX_DOCUMENT_TOKENS: integer(100000),

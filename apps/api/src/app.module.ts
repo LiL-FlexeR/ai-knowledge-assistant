@@ -3,8 +3,15 @@ import { ConfigModule } from './config/config.module';
 import { HealthModule } from './health/health.module';
 import { DocumentsModule } from './modules/documents/documents.module';
 import { IngestionModule } from './modules/ingestion/ingestion.module';
+import { RetrievalModule } from './modules/retrieval/retrieval.module';
 
 @Module({
-  imports: [ConfigModule, HealthModule, DocumentsModule, IngestionModule],
+  imports: [
+    ConfigModule,
+    HealthModule,
+    DocumentsModule,
+    IngestionModule,
+    RetrievalModule,
+  ],
 })
 export class AppModule {}

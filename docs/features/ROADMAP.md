@@ -1,6 +1,6 @@
 # Implementation roadmap
 
-**Status: S00–S03 complete; S04–S07 remain unimplemented.** Checks and limitations are recorded in [S00 evidence](stages/S00-project-setup.md#verification-evidence), [S01 evidence](stages/S01-database-and-infrastructure.md#verification-evidence), [S02 evidence](stages/S02-document-management.md#verification-evidence), and [S03 evidence](stages/S03-document-ingestion.md#verification-evidence). This is the primary execution plan for future sessions. Execute exactly the requested stage, verify its dependencies in the repository, and stop before the next stage. If prerequisites are missing, report the dependency instead of creating undocumented substitutes.
+**Status: S00–S04 complete; S05–S07 remain unimplemented.** Checks and limitations are recorded in [S00 evidence](stages/S00-project-setup.md#verification-evidence), [S01 evidence](stages/S01-database-and-infrastructure.md#verification-evidence), [S02 evidence](stages/S02-document-management.md#verification-evidence), [S03 evidence](stages/S03-document-ingestion.md#verification-evidence), and [S04 evidence](stages/S04-semantic-retrieval.md#verification-evidence). This is the primary execution plan for future sessions. Execute exactly the requested stage, verify its dependencies in the repository, and stop before the next stage. If prerequisites are missing, report the dependency instead of creating undocumented substitutes.
 
 Read [AGENTS.md](../../AGENTS.md), [product requirements](../product/requirements.md), and relevant [architecture](../architecture/README.md). Detailed stage documents own execution detail; public behavior remains governed by [API contracts](../architecture/api-contracts.md). Verify current stable tooling during implementation; commands below are planned until their owning stage introduces them.
 
@@ -136,25 +136,25 @@ Completion evidence belongs in the final verification section of each stage docu
 
 **Implementation tasks**
 
-- [ ] Implement validated query embeddings and parameterized exact vector queries with document/profile/run filters.
-- [ ] Add topK/cutoff behavior, deterministic ordering, source/excerpt DTO mapping, and POST `/api/search`.
-- [ ] Short-circuit empty corpus and distinguish insufficient context from provider/configuration errors.
+- [x] Implement validated query embeddings and parameterized exact vector queries with document/profile/run filters.
+- [x] Add topK/cutoff behavior, deterministic ordering, source/excerpt DTO mapping, and POST `/api/search`.
+- [x] Short-circuit empty corpus and distinguish insufficient context from provider/configuration errors.
 
 **Expected deliverables**
 
-- [ ] Retrieval module, shared search schemas/OpenAPI, and real vector retrieval tests.
+- [x] Retrieval module, shared search schemas/OpenAPI, and real vector retrieval tests.
 
 **Acceptance criteria**
 
-- [ ] Known vectors rank correctly; filters and result bounds hold; all hit locations resolve; empty evidence and upstream faults have distinct contracts.
+- [x] Known vectors rank correctly; filters and result bounds hold; all hit locations resolve; empty evidence and upstream faults have distinct contracts.
 
 **Required tests**
 
-- [ ] Input/source mapper tests; real pgvector order/cutoff/filter tests; API validation/provider-error contract tests with fake embeddings.
+- [x] Input/source mapper tests; real pgvector order/cutoff/filter tests; API validation/provider-error contract tests with fake embeddings.
 
 **Definition of Done**
 
-- [ ] Search invariants/checks pass and provisional threshold is documented without treating similarity as factual confidence.
+- [x] Search invariants/checks pass and provisional threshold is documented without treating similarity as factual confidence.
 
 ## S05 — AI Question Answering
 

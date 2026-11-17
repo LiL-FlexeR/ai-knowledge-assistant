@@ -36,13 +36,15 @@ Deterministic fakes establish source/lifecycle integrity, not semantic retrieval
 
 ## Retrieval
 
-1. Validate trimmed question/query: 1–2000 characters and at most 512 selected-model tokens.
-2. Generate a profile-compatible query embedding; validate the vector.
+1. Validate trimmed question/query: 1–2000 UTF-16 characters and at most 512 `cl100k_base` tokens (special-token strings are ordinary text); reject ill-formed Unicode. Validate optional existing unique document IDs, inspect database/profile compatibility, then check eligible ready documents. None returns `NO_READY_DOCUMENTS` before configuration/embedding checks.
+2. Require AI configuration and generate a profile-compatible query embedding from query text alone; validate count, dimensions, finite/nonzero float32 vector values. Full interactive AI capacity returns 429 immediately; ingestion waits within its deadline.
 3. Perform exact cosine nearest-neighbor search over ready documents and the current profile/run. Apply optional document IDs before limiting. Order by distance then chunk UUID for deterministic ties.
 4. Request `topK` results (default 5, range 1–10); keep candidates at similarity ≥ 0.30. That cutoff is a provisional noise filter to calibrate in S07, not a factual confidence score. It may suppress relevant passages and admit irrelevant ones.
 5. Return ranked chunk/source metadata. No candidates means `insufficient_context` with no generation call. No ready documents also short-circuits without a paid embedding call.
 
 Cosine compares direction in embedding space and provides a clear baseline. Exact search avoids approximate-index tuning for the small corpus. Semantic similarity does not establish entailment, truth, or answerability. No reranking, hybrid search, query rewriting, or multi-agent processing in MVP.
+
+S04 implements this baseline in `modules/retrieval`: exact `<=>` with bound vector/UUID arrays/topK/profile fields, current model/dimensions/pipeline/run checks, strict scalar-row validation and stored source DTOs. Excerpts preserve at most 1000 UTF-16 units without splitting surrogate pairs; locations retain the full stored chunk span. Query deadlines use `ASK_TIMEOUT_MS` (65 seconds by default) across preflight/embedding/SQL, with disconnect cancellation and the existing provider retry budget. Database statements remain separately bounded by the connection's three-second timeout. Known-vector/fake-provider tests prove mechanics and source integrity, not semantic quality. Context assembly and generation below remain S05 work.
 
 ## Context assembly
 

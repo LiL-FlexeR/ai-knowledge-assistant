@@ -76,7 +76,7 @@ try {
       ...args,
       '--write-out',
       '\n%{http_code}',
-      `${base}${path}`,
+      `${path.startsWith('/search') ? base.replace(/\/documents$/, '') : base}${path}`,
     ]);
     const index = stdout.lastIndexOf('\n');
     assert.equal(Number(stdout.slice(index + 1)), expected);
@@ -107,6 +107,42 @@ try {
       console.log('Stored PDF physical source pages: 1, 2.');
     }
   }
+  const query = (body) =>
+    curl('/search', 200, [
+      '-H',
+      'Content-Type: application/json',
+      '-d',
+      JSON.stringify(body),
+    ]);
+  const hits = await query({ query: 'maintenance window', topK: 5 });
+  assert.equal(hits.status, 'results');
+  assert.ok(
+    hits.results.some((hit) => hit.source.location.kind === 'markdown'),
+  );
+  console.log(
+    'curl POST /api/search: 200/results with stored Markdown location and score.',
+  );
+  const pdfHits = await query({
+    query: 'maintenance window',
+    documentIds: [ids[1]],
+  });
+  assert.ok(pdfHits.results.length > 0);
+  assert.ok(
+    pdfHits.results.every(
+      (hit) =>
+        hit.source.documentId === ids[1] && hit.source.location.kind === 'pdf',
+    ),
+  );
+  console.log('curl document-filtered search: only stored PDF pages returned.');
+  handler = async () => ({
+    vectors: [[0, 1, ...Array(1534).fill(0)]],
+    inputTokens: 2,
+  });
+  assert.equal(
+    (await query({ query: 'unrelated synthetic direction' })).reason,
+    'NO_RELEVANT_CONTEXT',
+  );
+  handler = undefined;
   const scanned = await curl('', 201, [
     '-F',
     `file=@${join(fixtures, 'scanned.pdf')}`,
@@ -143,6 +179,16 @@ try {
     'curl transient failure → 202/reprocess → ready with a new complete generation.',
   );
   for (const id of ids) await curl(`/${id}`, 204, ['-X', 'DELETE']);
+  handler = async () => {
+    throw new Error('Empty corpus must skip embedding.');
+  };
+  assert.equal(
+    (await query({ query: 'maintenance window' })).reason,
+    'NO_READY_DOCUMENTS',
+  );
+  console.log(
+    'curl unrelated/empty corpus: NO_RELEVANT_CONTEXT / NO_READY_DOCUMENTS.',
+  );
   let entered;
   const called = new Promise((resolve) => {
     entered = resolve;
@@ -179,7 +225,7 @@ try {
     'curl delete during processing: 204; provider cancelled; no resurrected rows/chunks/files.',
   );
   console.log(
-    'S03 curl demo passed with fake AI; no provider calls or semantic-quality claims.',
+    'S03/S04 curl demos passed with fake AI; no provider calls or semantic-quality claims.',
   );
 } finally {
   await app.close();

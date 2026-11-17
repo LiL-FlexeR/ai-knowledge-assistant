@@ -51,7 +51,7 @@ S00–S01 implement the API configuration schema and database/storage readiness.
 | `PIPELINE_VERSION` | `v1`; extraction/normalization/chunking revision |
 | `MAX_UPLOAD_BYTES` | 10485760 (10 MiB), one file per request |
 | `MAX_UPLOAD_STREAMS`, `UPLOAD_TIMEOUT_MS` | 2 concurrent multipart streams; 60000 ms for receipt/validation; configurable downward |
-| `UPLOAD_REQUESTS_PER_MINUTE`, `DOCUMENT_REQUESTS_PER_MINUTE` | 10 uploads; 120 list/detail/delete requests combined per socket client; configurable downward |
+| `UPLOAD_REQUESTS_PER_MINUTE`, `DOCUMENT_REQUESTS_PER_MINUTE`, `SEARCH_REQUESTS_PER_MINUTE` | 10 uploads/reprocess combined; 120 list/detail/delete combined; 10 searches per socket client; configurable downward |
 | `MAX_PDF_PAGES`, `MAX_EXTRACTED_CHARS` | 100; 500000 UTF-16 code units |
 | `MAX_DOCUMENT_TOKENS`, `MAX_CHUNKS` | 100000; 256; reject excess rather than silently truncate |
 | `MAX_DOCUMENTS`, `MAX_STORED_BYTES` | 100; 209715200 (200 MiB), originals including pending/deleting reservations |
@@ -63,7 +63,7 @@ S00–S01 implement the API configuration schema and database/storage readiness.
 | `CONTEXT_MAX_TOKENS`, `ANSWER_MAX_OUTPUT_TOKENS` | 4000 evidence tokens; 800 total provider output-token cap |
 | `QUESTION_MAX_CHARS`, `QUESTION_MAX_TOKENS` | 2000; 512; both enforced |
 | `AI_REQUEST_TIMEOUT_MS`, `AI_MAX_RETRIES` | 20000 per attempt; 2 retries after the first |
-| `INGESTION_TIMEOUT_MS`, `ASK_TIMEOUT_MS` | 180000 whole run; 65000 whole ask, including embedding/generation/retries |
+| `INGESTION_TIMEOUT_MS`, `ASK_TIMEOUT_MS` | 180000 whole run; 65000 whole search/ask, including database checks, embedding/generation/retries |
 | `EXTRACTION_TIMEOUT_MS`, `EXTRACTION_MAX_MEMORY_MB` | 15000; 256 worker budget; see security for limitations |
 | `AI_MAX_CONCURRENT_REQUESTS` | 2 outbound calls process-wide; bounded wait included in operation deadline |
 
@@ -73,10 +73,16 @@ S00 caps resource limits at the documented defaults (retrieval topK remains 1–
 
 S02 implements the documents module, private local store, serialized quota admission, signed pagination, and deletion compensation. Startup and hourly reconciliation resume deleting rows and remove only generated, unreferenced originals/staging files older than one hour. Reconciliation faults log safe messages and retry; they do not prevent liveness startup. S03 installs one scanner/worker, which processes oldest pending rows only with locally valid AI configuration and database/profile compatibility. Interrupted processing becomes failed on startup; pending resumes. A whole-run AbortController also fences extraction, provider work, deletion and shutdown. Filesystem and database work are separate; transactions contain no streaming or filesystem operations.
 
-Per-route request limits and safe storage rules are owned by [security](security.md). Public processing states and error contracts are owned by [API contracts](api-contracts.md). [README](../../README.md) distinguishes available S00–S03 commands from planned later-stage commands.
+Per-route request limits and safe storage rules are owned by [security](security.md). Public processing states and error contracts are owned by [API contracts](api-contracts.md). [README](../../README.md) distinguishes available S00–S04 commands from planned later-stage commands.
 
 ## S03 runtime choices
 
 Pinned PDF.js (`pdfjs-dist` 6.5.438), `js-tiktoken` 1.0.21 (`cl100k_base`), and OpenAI Node SDK 7.57.0 are compatible with Node 24.22.3. The accepted embedding model/profile/dimensions/pipeline are fixed to the documented v1 values. Parsing, normalization, document token counting and chunking execute in a terminable worker; it receives bounded bytes and extraction settings with an empty environment, never keys, URLs or storage paths. Worker stdout/stderr are drained without logging untrusted parser output. API Compose resources are limited to 1 GiB and one CPU; the worker heap limit is 256 MiB, which does not cap native allocations or establish a hostile-file sandbox.
 
 Missing `OPENAI_API_KEY` preserves upload/list/detail/delete and pending rows, while readiness reports `aiConfiguration` failed. Database-only Compose setup and migration remain usable without the key; full `up --wait` requires it for API health. Health checks validate configuration locally and never call OpenAI. The single scanner waits its polling interval after bootstrap, retries unavailable database/recovery checks, and never automatically retries failed documents.
+
+## S04 retrieval implementation
+
+The retrieval module exports `RetrievalService` and owns a focused exact SQL reader and source mapper. Search checks existing filter IDs, database/vector/profile compatibility and eligible ready documents before embedding. Query text alone uses the existing model/dimensions and `cl100k_base` token policy. SQL binds vector, UUID arrays, profile fields and limit; it joins ready/current-run documents and selects scalar metadata/content/location/distance only. The mapper validates stored spans and creates plain-text excerpts at Unicode boundaries. No migration or new package is required.
+
+Interactive embedding requests never queue behind full outbound capacity: they return 429 with Retry-After. Ingestion retains its bounded semaphore wait. Search uses the existing 65-second `ASK_TIMEOUT_MS` operation budget and cancels on disconnect. An empty eligible corpus returns a successful limitation even without an AI key; configured/profile/storage/provider errors remain distinct.
