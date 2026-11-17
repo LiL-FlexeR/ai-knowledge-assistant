@@ -28,12 +28,12 @@ Ask AI displays answer statements with their validated citation links and source
 
 ## Implementation Tasks
 
-- [ ] Verify compatible Tailwind/shadcn/ui/Query/form releases and add only necessary UI dependencies.
-- [ ] Implement same-origin proxy/client/schema parsing and public error mapping.
-- [ ] Build Documents upload/list/pagination/status/error/delete/reprocess flows and bounded polling/cache behavior.
-- [ ] Build Ask AI question/loading/answer/source/insufficient/refused/error/retry flows.
-- [ ] Add basic safe response headers/CSP consistent with verified Next.js behavior and local proxy policy.
-- [ ] Create deterministic browser tests and inspect desktop/narrow layouts and keyboard flow; update demo/setup docs.
+- [x] Verify compatible Tailwind/shadcn/ui/Query/form releases and add only necessary UI dependencies.
+- [x] Implement same-origin proxy/client/schema parsing and public error mapping.
+- [x] Build Documents upload/list/pagination/status/error/delete/reprocess flows and bounded polling/cache behavior.
+- [x] Build Ask AI question/loading/answer/source/insufficient/refused/error/retry flows.
+- [x] Add basic safe response headers/CSP consistent with verified Next.js behavior and local proxy policy.
+- [x] Create deterministic browser tests and inspect desktop/narrow layouts and keyboard flow; update demo/setup docs.
 
 ## Expected Files and Modules
 
@@ -57,15 +57,15 @@ Test API client schema/error/204 behavior, form bounds, source labels and hostil
 
 ## Acceptance Criteria
 
-- [ ] Both screens support required stories with visible accessible loading/error/empty/outcome states.
-- [ ] Source cards show correct physical pages/sections/lines/excerpts and execute no uploaded/generated HTML.
-- [ ] Polling terminates appropriately and paid POST retries/submissions are controlled.
-- [ ] Full deterministic browser flow, proxy behavior and responsive/keyboard inspection pass without leaked secrets.
+- [x] Both screens support required stories with visible accessible loading/error/empty/outcome states.
+- [x] Source cards show correct physical pages/sections/lines/excerpts and execute no uploaded/generated HTML.
+- [x] Polling terminates appropriately and paid POST retries/submissions are controlled.
+- [x] Full deterministic browser flow, proxy behavior and responsive/keyboard inspection pass without leaked secrets.
 
 ## Definition of Done
 
-- [ ] Required checks/visual observations are recorded and README/demo match the actual UI.
-- [ ] Update only verified S06 roadmap items; stop before S07.
+- [x] Required checks/visual observations are recorded and README/demo match the actual UI.
+- [x] Update only verified S06 roadmap items; stop before S07.
 
 ## Out of Scope
 
@@ -90,3 +90,31 @@ Record actual browser/viewport/keyboard observations plus commands/results. Full
 ## Demo Scenario
 
 Perform the [document→ask→source→delete journey](../../product/demo-scenarios.md) in the browser, then show failed ingestion, missing evidence, refusal and upstream error using deterministic scenarios. Explain local-only and external text-processing limits.
+
+## Verification evidence
+
+Verified 2026-11-17 on Node 24.22.3 / pnpm 12.21.0. All S00–S05 routes/shared schemas and deterministic provider boundaries were present; the existing integration suite was rerun before completing dependent frontend work. No persistence, public DTO, ingestion, retrieval or generation behavior changed. S06 is complete; S07 remains unstarted.
+
+Implemented files: `apps/web/app/{documents,ask,api}/`, root layout/navigation/styles and redirect; `components/` (task screens, source rendering, providers, activity subscription, safe errors and selected shadcn primitives); `lib/{api,proxy,forms,presentation}.ts`; `proxy.ts` for nonce CSP/security headers; Tailwind/PostCSS/shadcn configuration; unit and Playwright tests. Workspace manifests/lockfile pin compatible dependencies; `compose.yaml` supplies the exact public web Origin to the proxy. `scripts/browser-server.mjs`, `check-web-bundle.mjs` and the integration harness provide an isolated real-API/fake-AI production browser environment. README, demo, affected requirements/stories/architecture and roadmap match these changes.
+
+| Check | Recorded result |
+| --- | --- |
+| `pnpm lint` | Pass: ESLint and Prettier, zero warnings |
+| `pnpm typecheck` | Pass: strict API/web/shared types, generated Next routes and DOM-only shared boundary |
+| `pnpm test` | Pass: existing harness checks/OpenAPI drift, 231 API tests in 11 suites; frontend client/proxy/form/source tests pass (12 after final disconnect regression) |
+| `pnpm test:integration` | Pass: 71 tests in five suites using actual PostgreSQL/pgvector; fresh migrations/redeploy, schema diff/introspection, runtime privileges, lifecycle/source/citation races and deterministic REST demos |
+| `pnpm test:e2e` | Pass: 10 Chromium cases across desktop 1440×1000 and narrow 390×844 against production Next.js; no retries or paid AI calls |
+| `pnpm build` | Pass: all workspaces; web routes dynamically rendered for per-request script nonces |
+| `docker compose up --build -d --wait` | Pass in an isolated temporary project after explicit reviewed migrations; loopback random ports and tmpfs replace retained data volumes. Documents/Ask, proxied readiness and empty-corpus ask succeed; all test containers/networks removed with `down` |
+| Public bundle scan | Pass: 16 static build assets do not contain the fake provider-key canary, internal API target, test database URL or private storage root |
+| Documentation links / `git diff --check` | Pass: affected relative file links resolve; no whitespace errors |
+
+The environment's selected Docker Desktop socket was absent; `DOCKER_CONTEXT=default` used the available local daemon. Commands used the existing pinned project toolchain under `.local/s02-toolchain/bin`; the host default Node/pnpm versions were incompatible. Socket-based API tests and Docker/browser/build checks ran with the necessary execution permissions after sandbox EPERM failures. Those failed environment attempts were not counted as passes.
+
+Browser observations and assertions: keyboard upload→ready→ask→source→confirm-delete→no-ready-evidence works at both sizes; results and citation targets receive focus, deletion returns focus to the collection, confirmation traps focus and initially selects Cancel. Screenshots of both screens at both sizes were visually inspected against `apps/web/DESIGN.md`: readable hierarchy, contrast and focus outlines; stacked narrow controls; no overlap or horizontal overflow. Screenshot outputs are reproducible under ignored `apps/web/test-results/`.
+
+The real API exercises successful upload/ingestion/answer/delete, image-only PDF failure and manual reprocess after a transient fake embedding fault. Controlled fixtures exercise all source kinds, escaped hostile text, missing/insufficient evidence, refusal, changed evidence (409), capacity/rate guidance, safe upstream/configuration/timeout failures, cursor navigation and failed deletion/retry. Polling assertions prove two-second active polling, terminal stop, hidden/offline pause and unmount stop. API-client/proxy tests cover 204, schema rejection, safe unknown/network errors, Retry-After/request IDs, Origin/Host/target policy, bounded streamed multipart/JSON, 75-second transport allowance, disconnect cancellation and no automatic paid retry.
+
+Refero MCP was unavailable; bundled typography/craft/accessibility references and Impeccable Operate informed the recorded direction. A focused module/security/contracts review found no unresolved S06 boundary issue.
+
+No live OpenAI evaluation or AI-enabled Compose document demo was run. The Compose smoke used a fake key only for local readiness and an empty corpus (which skips AI); deterministic browser tests replace providers in a test module. Scripted outputs and known vectors establish workflow/contracts, not semantic relevance, factual support or universal prompt-injection protection. Other browser engines, authentication/public hosting and S07 evaluation/polish remain outside this stage.

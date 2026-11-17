@@ -41,7 +41,7 @@ S00–S01 implement the API configuration schema and database/storage readiness.
 | `DATABASE_URL`, `TEST_DATABASE_URL` | Required when database/tests enabled; separate databases; no production targets in tests |
 | `MIGRATION_DATABASE_URL` | Server/tooling-only schema-owner URL for explicit migrations; runtime URL uses data privileges |
 | `SHADOW_DATABASE_URL` | Optional isolated development database only if required by the selected Prisma migration tooling |
-| `WEB_ORIGIN` | `http://localhost:3000`; exact mutation Origin allowlist |
+| `WEB_ORIGIN` | `http://localhost:3000`; exact API mutation Origin and web proxy Host/Origin allowlist; open this address |
 | `API_INTERNAL_URL` | Server-only web proxy target; host `http://127.0.0.1:3001`, Compose `http://api:3001` |
 | `STORAGE_ROOT` | Absolute path; host `.local/documents` resolved at startup, container `/data/documents`; never served statically |
 | `OPENAI_API_KEY` | Server-only secret, no default |
@@ -73,7 +73,7 @@ S00 caps resource limits at the documented defaults (retrieval topK remains 1–
 
 S02 implements the documents module, private local store, serialized quota admission, signed pagination, and deletion compensation. Startup and hourly reconciliation resume deleting rows and remove only generated, unreferenced originals/staging files older than one hour. Reconciliation faults log safe messages and retry; they do not prevent liveness startup. S03 installs one scanner/worker, which processes oldest pending rows only with locally valid AI configuration and database/profile compatibility. Interrupted processing becomes failed on startup; pending resumes. A whole-run AbortController also fences extraction, provider work, deletion and shutdown. Filesystem and database work are separate; transactions contain no streaming or filesystem operations.
 
-Per-route request limits and safe storage rules are owned by [security](security.md). Public processing states and error contracts are owned by [API contracts](api-contracts.md). [README](../../README.md) distinguishes available S00–S05 commands from planned later-stage commands.
+Per-route request limits and safe storage rules are owned by [security](security.md). Public processing states and error contracts are owned by [API contracts](api-contracts.md). [README](../../README.md) distinguishes available S00–S06 commands from planned later-stage commands.
 
 ## S03 runtime choices
 
@@ -92,3 +92,9 @@ Interactive embedding requests never queue behind full outbound capacity: they r
 `chat` consumes the internal complete-span/processing-run retrieval result; the public search DTO is unchanged. It admits complete spans under 4000 `o200k_base` tokens, suppresses >50% overlap in the same document/unit, freezes the source map, and serializes question/evidence as user data under `grounded-answer-v1` system instructions. The full serialized Responses request (including schema, metadata and wrappers) is counted with an additional 1024-token framing allowance; input must fit 272000 tokens and input plus the output reservation must fit the 400000-token window. This local count is a conservative admission estimate, not billed usage.
 
 One `GroundedAnswerClient` call uses the existing pinned OpenAI SDK, strict JSON schema, reasoning disabled, no tools, no streaming/history, disabled automatic truncation and `store: false`. The provider output cap is 800 tokens, with incomplete output rejected rather than shown partially. Embedding and generation share the same semaphore and extracted retry/deadline policy; interactive generation rejects full capacity immediately. The whole ask deadline includes retrieval, context preparation, generation, retries and final ready/run/model/dimension/profile/pipeline checks on cited documents only. No database migration or new package is needed. Readiness remains a local configuration check; no account-access or paid-model health probe is performed.
+
+## S06 frontend implementation
+
+Documents and Ask AI consume browser-safe shared schemas through relative `/api` URLs. Next.js route handlers perform transport only; the API owns business rules. TanStack Query manages list/detail cache and mutation invalidation; only visible active document rows poll at two seconds, with capped exponential error backoff and Retry-After, hidden/offline pause and unmount cancellation. Ready/failed rows stop interval polling. Paid mutations have no automatic retries or offline queue. React Hook Form/Zod validates inputs; server validation remains authoritative.
+
+The proxy has a 75-second allowance and the browser a 78-second allowance. Public assets contain no provider/database/storage/internal-target configuration. Per-request script nonces and dynamic rendering support CSP; inline styles remain permitted for Next/Radix compatibility, while objects, framing and external connections are blocked in production. Source links are fixed local citation anchors and all user/model text is escaped. Content is held only in browser memory, with no persisted history.

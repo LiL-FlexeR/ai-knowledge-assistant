@@ -20,6 +20,7 @@
     "db:migrate": "node scripts/with-env.mjs node scripts/database.mjs migrate",
     "db:migrate:dev": "node scripts/with-env.mjs node scripts/database.mjs migrate:dev",
     "test:integration": "node scripts/test-integration.mjs",
+    "test:e2e": "node scripts/test-integration.mjs --e2e",
     "api:openapi": "pnpm --filter @aka/shared build && node scripts/generate-openapi.mjs"
   },
   "devDependencies": {

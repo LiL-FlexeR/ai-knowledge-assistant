@@ -1,6 +1,6 @@
 # Implementation roadmap
 
-**Status: S00–S05 complete; S06–S07 remain unimplemented.** Checks and limitations are recorded in [S00 evidence](stages/S00-project-setup.md#verification-evidence), [S01 evidence](stages/S01-database-and-infrastructure.md#verification-evidence), [S02 evidence](stages/S02-document-management.md#verification-evidence), [S03 evidence](stages/S03-document-ingestion.md#verification-evidence), [S04 evidence](stages/S04-semantic-retrieval.md#verification-evidence), and [S05 evidence](stages/S05-ai-question-answering.md#verification-evidence). This is the primary execution plan for future sessions. Execute exactly the requested stage, verify its dependencies in the repository, and stop before the next stage. If prerequisites are missing, report the dependency instead of creating undocumented substitutes.
+**Status: S00–S06 complete; S07 remains unimplemented.** Checks and limitations are recorded in [S00 evidence](stages/S00-project-setup.md#verification-evidence), [S01 evidence](stages/S01-database-and-infrastructure.md#verification-evidence), [S02 evidence](stages/S02-document-management.md#verification-evidence), [S03 evidence](stages/S03-document-ingestion.md#verification-evidence), [S04 evidence](stages/S04-semantic-retrieval.md#verification-evidence), [S05 evidence](stages/S05-ai-question-answering.md#verification-evidence), and [S06 evidence](stages/S06-frontend.md#verification-evidence). This is the primary execution plan for future sessions. Execute exactly the requested stage, verify its dependencies in the repository, and stop before the next stage. If prerequisites are missing, report the dependency instead of creating undocumented substitutes.
 
 Read [AGENTS.md](../../AGENTS.md), [product requirements](../product/requirements.md), and relevant [architecture](../architecture/README.md). Detailed stage documents own execution detail; public behavior remains governed by [API contracts](../architecture/api-contracts.md). Verify current stable tooling during implementation; commands below are planned until their owning stage introduces them.
 
@@ -196,25 +196,25 @@ Completion evidence belongs in the final verification section of each stage docu
 
 **Implementation tasks**
 
-- [ ] Implement typed API client/proxy, Documents upload/pagination/status/error/delete/reprocess flows, and bounded polling.
-- [ ] Implement Ask AI form, loading/results/citations/insufficient/refusal/error/retry states.
-- [ ] Add accessible shadcn/ui layouts, safe plain-text rendering, provider/local-only disclosures, and responsive/browser checks.
+- [x] Implement typed API client/proxy, Documents upload/pagination/status/error/delete/reprocess flows, and bounded polling.
+- [x] Implement Ask AI form, loading/results/citations/insufficient/refusal/error/retry states.
+- [x] Add accessible shadcn/ui layouts, safe plain-text rendering, provider/local-only disclosures, and responsive/browser checks.
 
 **Expected deliverables**
 
-- [ ] Next.js pages, shared-schema integration, TanStack Query/form hooks, and deterministic browser tests.
+- [x] Next.js pages, shared-schema integration, TanStack Query/form hooks, and deterministic browser tests.
 
 **Acceptance criteria**
 
-- [ ] Keyboard-accessible upload→ready→ask→inspect-source→delete works; errors/empty states are understandable; no server secrets enter bundles.
+- [x] Keyboard-accessible upload→ready→ask→inspect-source→delete works; errors/empty states are understandable; no server secrets enter bundles.
 
 **Required tests**
 
-- [ ] API/form/source rendering checks, mock-provider browser workflow, Origin/proxy/multipart/error behavior, and desktop/narrow visual inspection.
+- [x] API/form/source rendering checks, mock-provider browser workflow, Origin/proxy/multipart/error behavior, and desktop/narrow visual inspection.
 
 **Definition of Done**
 
-- [ ] Two screens and all outcome states are verified, browser checks pass, and README/demo match the actual UI.
+- [x] Two screens and all outcome states are verified, browser checks pass, and README/demo match the actual UI.
 
 ## S07 — Testing and Polish
 

@@ -1,6 +1,6 @@
 # Architecture guide
 
-These documents specify target behavior. S00–S05 implement the workspace, liveness/readiness/configuration/error foundation, minimal web shell, local Compose runtime, Prisma/pgvector persistence, private document management, and bounded ingestion with source-aware chunks, OpenAI embeddings, recovery and reprocessing. S04 adds exact cosine search with profile/run/document filters and stored sources. S05 adds bounded structured generation, server-mapped citations and a final cited-run/profile consistency check; without AI configuration pending work waits and readiness reports 503. The [generated OpenAPI](openapi.json) describes implemented routes only.
+These documents specify target behavior. S00–S06 implement the workspace, liveness/readiness/configuration/error foundation, two-screen web interface, local Compose runtime, Prisma/pgvector persistence, private document management, and bounded ingestion with source-aware chunks, OpenAI embeddings, recovery and reprocessing. S04 adds exact cosine search with profile/run/document filters and stored sources. S05 adds bounded structured generation, server-mapped citations and a final cited-run/profile consistency check; without AI configuration pending work waits and readiness reports 503. S06 supplies accessible Documents/Ask AI screens and a bounded same-origin proxy. The [generated OpenAPI](openapi.json) describes implemented routes only.
 
 | Document | Owns |
 | --- | --- |

@@ -93,10 +93,14 @@ try {
   ]);
   run('pnpm', ['db:generate']);
   run('pnpm', ['--filter', '@aka/shared', 'build']);
-  run('pnpm', ['--filter', '@aka/api', 'test:integration']);
+  const browserOnly = process.argv.includes('--e2e');
+  if (!browserOnly) run('pnpm', ['--filter', '@aka/api', 'test:integration']);
   run('pnpm', ['--filter', '@aka/api', 'build']);
-  run('node', ['scripts/document-rest-demo.mjs']);
-  run('node', ['scripts/ingestion-rest-demo.mjs']);
+  if (browserOnly) run('node', ['scripts/browser-server.mjs']);
+  else {
+    run('node', ['scripts/document-rest-demo.mjs']);
+    run('node', ['scripts/ingestion-rest-demo.mjs']);
+  }
   run('pnpm', [
     '--filter',
     '@aka/api',
@@ -110,7 +114,9 @@ try {
     '--exit-code',
   ]);
   console.log(
-    'Isolated migrations, runtime privileges, vectors, readiness, document lifecycle and REST demo passed.',
+    browserOnly
+      ? 'Isolated migrations and deterministic production-browser workflows passed.'
+      : 'Isolated migrations, runtime privileges, vectors, readiness, document lifecycle and REST demo passed.',
   );
 } catch (error) {
   console.error(error.message);

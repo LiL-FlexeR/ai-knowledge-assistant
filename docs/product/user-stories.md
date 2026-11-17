@@ -1,6 +1,6 @@
 # User stories
 
-Checked API criteria below are verified in [S02 evidence](../features/stages/S02-document-management.md#verification-evidence). Other stories and product UI remain planned; acceptance requires observable behavior plus tests from the owning stage. Refer to [contracts](../architecture/api-contracts.md) for exact schemas/status codes.
+Checked API criteria below are verified in [S02 evidence](../features/stages/S02-document-management.md#verification-evidence). S06 UI criteria below are verified in [S06 evidence](../features/stages/S06-frontend.md#verification-evidence); acceptance requires observable behavior plus tests from the owning stage. Refer to [contracts](../architecture/api-contracts.md) for exact schemas/status codes.
 
 ## US-01 — Upload a supported document (S02)
 
@@ -14,10 +14,10 @@ As a user, I want to upload a PDF, TXT, or Markdown file so I can ask about its 
 
 As a user, I want to see when a file is searchable and why processing failed.
 
-- [ ] Documents show pending/processing/ready/failed/deleting with the current safe error and no invented completion percentage.
-- [ ] A valid multi-page text PDF becomes ready with chunks referencing its actual physical pages.
-- [ ] Scanned-only, encrypted/unsupported, empty, limit-exceeding, and provider-failing inputs reach an actionable failed state without searchable partial chunks.
-- [ ] Polling stops for terminal states and does not continue indefinitely after navigation.
+- [x] Documents show pending/processing/ready/failed/deleting with the current safe error and no invented completion percentage.
+- [x] A valid multi-page text PDF becomes ready with chunks referencing its actual physical pages.
+- [x] Scanned-only, encrypted/unsupported, empty, limit-exceeding, and provider-failing inputs reach an actionable failed state without searchable partial chunks.
+- [x] Polling stops for terminal states and does not continue indefinitely after navigation.
 
 ## US-03 — Manage my corpus (S02/S06)
 
@@ -25,7 +25,7 @@ As a user, I want to browse and delete documents so obsolete content stops influ
 
 - [x] Cursor pagination yields no duplicates in a stable dataset; detail returns the same document shape.
 - [x] Delete hides evidence before cleanup, then returns 204 only after file/chunk/metadata removal; repeating it is safe.
-- [ ] A failed cleanup is visible and can be retried; deleting during ingestion cannot recreate the index.
+- [x] A failed cleanup is visible and can be retried; deleting during ingestion cannot recreate the index.
 
 ## US-04 — Search semantically (S04)
 
@@ -46,23 +46,23 @@ As a user, I want answers with inspectable references so I can check their suppo
 - [x] Unknown citation IDs and malformed/truncated generation fail safely; provider output cannot set file locations.
 - [x] Multiple-section and conflicting-evidence examples show appropriate references and evidence limitations.
 
-API criteria verified with fake structured outputs and actual stored spans in [S05 evidence](../features/stages/S05-ai-question-answering.md#verification-evidence). Source cards/visual presentation remain S06; real answer support and injection resistance remain unmeasured.
+API criteria verified with fake structured outputs and actual stored spans in [S05 evidence](../features/stages/S05-ai-question-answering.md#verification-evidence). S06 verifies source cards, escaped excerpts and keyboard reference navigation; real answer support and injection resistance remain unmeasured.
 
 ## US-06 — Understand missing evidence (S05/S06)
 
 As a user, I want an explicit limitation when the documents cannot answer my question.
 
-- [ ] Empty or irrelevant evidence skips generation and displays insufficient information.
-- [ ] Ambiguous or unsupported questions do not receive fabricated factual answers; the limitation explains the gap or asks for clarification.
-- [ ] Refusals, upstream failures, and insufficient evidence appear as distinct outcomes with an appropriate user retry only for failures.
+- [x] Empty or irrelevant evidence skips generation and displays insufficient information.
+- [x] Ambiguous or unsupported questions do not receive fabricated factual answers; the limitation explains the gap or asks for clarification.
+- [x] Refusals, upstream failures, and insufficient evidence appear as distinct outcomes with an appropriate user retry only for failures.
 
 ## US-07 — Retry ingestion (S03/S06)
 
 As a user, I want to reprocess a ready or failed document after fixing configuration or a transient problem.
 
-- [ ] Explicit reprocess warns of AI cost, returns 202/pending, clears old searchable data, and creates a fresh fenced run.
-- [ ] Pending/processing/deleting documents return 409; missing originals return the documented error.
-- [ ] Restart marks interrupted work failed and permits manual retry without duplicating chunks.
+- [x] Explicit reprocess warns of AI cost, returns 202/pending, clears old searchable data, and creates a fresh fenced run.
+- [x] Pending/processing/deleting documents return 409; missing originals return the documented error.
+- [x] Restart marks interrupted work failed and permits manual retry without duplicating chunks.
 
 ## US-08 — Run and verify locally (S00/S01/S07)
 
