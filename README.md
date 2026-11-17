@@ -2,7 +2,7 @@
 
 A planned document question-answering application using Retrieval-Augmented Generation (RAG). Upload PDF, TXT, or Markdown files, search their content, and ask questions with references to the supporting passages.
 
-**Status: S00–S01 implemented and verified.** The workspace provides API liveness/readiness, a minimal Next.js shell, local Compose services, reviewed Prisma migrations, and real PostgreSQL/pgvector storage primitives. Document management, ingestion, retrieval, AI, and product screens remain planned in S02–S07. See [S01 verification evidence](docs/features/stages/S01-database-and-infrastructure.md#verification-evidence).
+**Status: S00–S02 implemented and verified.** The workspace provides API liveness/readiness, a minimal Next.js shell, local Compose services, reviewed Prisma migrations, PostgreSQL/pgvector primitives, and private document upload/list/detail/delete with quotas and retryable cleanup. Uploads stay pending: ingestion, retrieval, AI, and product screens remain planned in S03–S07. See [S02 verification evidence](docs/features/stages/S02-document-management.md#verification-evidence).
 
 ## Problem and planned features
 
@@ -51,7 +51,7 @@ Documentation lives in `docs/` and root `AGENTS.md`; installed project-local ski
 
 ```text
 apps/
-  api/                 # NestJS health/config/database infrastructure and Prisma schema
+  api/                 # NestJS health/config/database/documents and Prisma schema
   web/                 # Next.js App Router setup shell; product screens planned S06
 packages/
   shared/              # Public DTO schemas/types only
@@ -72,7 +72,7 @@ Follow the [skill selection and precedence rules](AGENTS.md#agent-skills): read 
 
 ## Local setup
 
-Install Node.js **24.22.3**, pnpm **12.21.0**, and Docker with Compose. Node/pnpm are also pinned in the repository. S01 needs no OpenAI key. PostgreSQL **18.7** with pgvector **0.8.7** and Node images are pinned by immutable digest; Prisma CLI/client/adapter are **7.10.1**, with `pg` **8.23.1**. [ADR-003](docs/architecture/decisions/ADR-003-data-storage.md#s01-implementation-and-compatibility) records the stable-version selection and compatibility evidence.
+Install Node.js **24.22.3**, pnpm **12.21.0**, and Docker with Compose. Node/pnpm are also pinned in the repository. S01–S02 need no OpenAI key. PostgreSQL **18.7** with pgvector **0.8.7** and Node images are pinned by immutable digest; Prisma CLI/client/adapter are **7.10.1**, with `pg` **8.23.1**. [ADR-003](docs/architecture/decisions/ADR-003-data-storage.md#s01-implementation-and-compatibility) records the stable-version selection and compatibility evidence.
 
 For host development:
 
@@ -111,6 +111,28 @@ After `pnpm build`, filtered API/web `start` commands run the compiled host apps
 
 Keep `Unsupported("vector(1536)")` in the committed schema and the custom extension/type/check SQL in migrations. Prisma 7 introspection prints `Unsupported("vector")`, omitting dimensions, and does not model SQL CHECK constraints. Use read-only `db pull --print`; review any future introspection changes rather than overwriting this schema. Real catalog/readiness tests own dimension verification; a clean Prisma diff alone cannot establish it.
 
+## Document API (S02)
+
+With the database migrated and API running, create a synthetic fixture and use the REST API:
+
+```bash
+printf 'Synthetic notes: maintenance is Sunday at 02:00 UTC.\n' > /tmp/synthetic-notes.txt
+curl -i -F 'file=@/tmp/synthetic-notes.txt' http://localhost:3001/api/documents
+curl -i 'http://localhost:3001/api/documents?limit=20'
+# Substitute the returned UUID:
+curl -i 'http://localhost:3001/api/documents/<id>'
+curl -i -X DELETE 'http://localhost:3001/api/documents/<id>'
+curl -i -X DELETE 'http://localhost:3001/api/documents/<id>'
+```
+
+Use a quoted URL after substituting the UUID; `<id>` is an illustrative placeholder. Upload exactly one `file` and no other fields. PDF, UTF-8 TXT, `.md` and `.markdown` are supported, with server-verified bytes and canonical MIME. The API returns 201 with `Location` and pending metadata after storing the original; **pending does not process in S02**. The five-pending cap therefore requires deleting an upload before admitting a sixth. Reprocess, extraction, embeddings, search, chat and product UI arrive later.
+
+Defaults are 10 MiB/file, two simultaneous streams, a 60-second receipt/validation deadline, 100 documents/200 MiB retained originals, and 10 uploads or 120 list/detail/delete requests per client per minute. Settings may be lowered in `.env`; 429 includes `Retry-After`. Mutations accept the exact `WEB_ORIGIN` when an Origin header is present; curl may omit it. GET pagination supports `status` and a signed cursor bound to that filter; cursors expire on API restart.
+
+Generated originals and staging files stay under private `STORAGE_ROOT`, outside web/static directories. DELETE invalidates evidence, removes the original and metadata, and returns empty 204 only after cleanup; repeated deletion is safe. A cleanup failure returns 500/`DELETE_FAILED` and leaves an inspectable deleting row for retry. Startup/hourly reconciliation retries deleting rows and removes only generated, unreferenced files older than an hour, skipping symlinks and unknown paths. Storage faults and crashes may delay compensation until reconciliation; this is logical deletion, not secure physical erasure. No file download route exists.
+
+See [REST contracts](docs/architecture/api-contracts.md), [generated OpenAPI](docs/architecture/openapi.json), and [S02 verification evidence](docs/features/stages/S02-document-management.md#verification-evidence). `pnpm test:integration` performs the curl workflow against disposable database/storage fixtures as well as controlled lifecycle-failure tests.
+
 ## Environment configuration
 
 The [system overview](docs/architecture/system-overview.md) owns configuration defaults. API validation is implemented for the listed settings, including integer/range bounds, overlap smaller than chunk size, absolute storage paths, and local web origins. Blank database/AI values are treated as absent. S01 readiness checks the database, extension, required vector dimension, stored ready profile/model/dimensions/pipeline, and actual storage I/O. Later stages add AI operation requirements. Invalid settings fail startup with variable names and no values. `NEXT_PUBLIC_*` configuration remains unsupported and rejected by the API.
@@ -129,6 +151,7 @@ The embedding profile is initially `text-embedding-3-small`, 1,536 dimensions; g
 | `pnpm infra:up`, `pnpm infra:down` | Available (S01) | Start/stop local PostgreSQL; preserve volumes |
 | `pnpm db:generate`, `pnpm db:migrate`, `pnpm db:migrate:dev` | Available (S01) | Generate client, deploy committed SQL/create reviewable migration |
 | `pnpm test:integration` | Available (S01) | Fresh isolated PostgreSQL/pgvector tests and cleanup |
+| `pnpm api:openapi` | Available (S02) | Regenerate implemented health/document OpenAPI from shared schemas; `pnpm test` checks drift |
 | `pnpm test:e2e` | S06 | Mock-provider browser workflow checks |
 | `pnpm eval:offline`, `pnpm eval:live` | S07 | Deterministic fixtures; explicit paid AI evaluation |
 
@@ -138,7 +161,7 @@ Only S06/S07 commands in the table remain planned. The Jest script enables Node'
 
 Run `pnpm lint`, `pnpm typecheck`, `pnpm test`, and `pnpm build`. S00 tests cover liveness/envelopes, generated request IDs, safe unknown-route/internal/parser errors, the JSON size limit, environment bounds/redaction, and root `.env` loading/exit propagation. Shared contracts compile independently with DOM libraries and no Node types. A clean-build secret-canary scan verified that server credentials did not enter web artifacts.
 
-`pnpm test:integration` starts a unique Compose project with the same pinned image, random credentials, a generated `aka_test_<run-id>` database, a random loopback port, tmpfs database data, and temporary storage. It refuses supplied `TEST_DATABASE_URL`/`TEST_STORAGE_ROOT` overrides, ignores normal database targets, checks ownership before writes, replays committed migrations, verifies read-only introspection and schema diff, regenerates the client, and runs real vector/constraint/privilege/readiness tests. Cleanup removes only that project and its temporary storage, including after failures; it never removes named volumes. Unit tests also verify rejected production-looking URLs/storage paths. Normal tests make no database/provider calls.
+`pnpm test:integration` starts a unique Compose project with the same pinned image, random credentials, a generated `aka_test_<run-id>` database, a random loopback port, tmpfs database data, and temporary storage. It refuses supplied `TEST_DATABASE_URL`/`TEST_STORAGE_ROOT` overrides, ignores normal database targets, checks ownership before writes, replays committed migrations, verifies read-only introspection and schema diff, regenerates the client, and runs real vector/constraint/privilege/readiness and document lifecycle tests. S02 covers supported/invalid uploads, private storage, quota races, stable pagination, safe errors, deletion fencing/compensation/retry, cleanup, admission and stream disconnect/deadline handling; the harness builds the API and runs a curl REST demo too. Cleanup removes only that project and its temporary storage, including after failures; it never removes named volumes. Unit tests also verify rejected production-looking URLs/storage paths and document format/name/path/quota/cursor rules. Normal tests make no database/provider calls and check generated OpenAPI for drift.
 
 Later stages will add normalization/chunking/context tests, business integration with AI fakes, browser workflows, and synthetic AI evaluation. There are no measured RAG quality scores yet. See [testing strategy](docs/architecture/testing-strategy.md).
 
@@ -148,4 +171,4 @@ Use the [primary execution roadmap](docs/features/ROADMAP.md): S00 setup → S01
 
 Authentication, deployment hardening, OCR, background queues, streaming, hybrid search, reranking, chat history, additional providers, versioning, S3 storage, and observability dashboards are optional [future work](docs/product/mvp-scope.md). They are not MVP infrastructure.
 
-S00 and S01 are complete; S02–S07 remain unimplemented and require an explicit request. Agents should first read [AGENTS.md](AGENTS.md).
+S00–S02 are complete; S03–S07 remain unimplemented and require an explicit request. Agents should first read [AGENTS.md](AGENTS.md).

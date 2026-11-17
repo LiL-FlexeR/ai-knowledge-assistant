@@ -2,7 +2,7 @@
 
 ## Project Context
 
-This repository implements S00–S01: workspace tooling, API liveness/readiness/configuration/error foundation, a minimal web shell, local Compose infrastructure, and verified Prisma/pgvector persistence primitives. Document APIs, ingestion/RAG features, and product screens remain planned. The target is a local, single-user document RAG application: NestJS/TypeScript API, Next.js/React UI, Prisma, PostgreSQL/pgvector, OpenAI, and a pnpm monorepo. Do not claim planned behavior is implemented.
+This repository implements S00–S02: workspace tooling, API liveness/readiness/configuration/error foundation, a minimal web shell, local Compose infrastructure, verified Prisma/pgvector persistence primitives, and private document upload/list/detail/delete with quota and cleanup handling. Uploads remain pending; ingestion/RAG features and product screens remain planned. The target is a local, single-user document RAG application: NestJS/TypeScript API, Next.js/React UI, Prisma, PostgreSQL/pgvector, OpenAI, and a pnpm monorepo. Do not claim planned behavior is implemented.
 
 ## Documentation Priority
 

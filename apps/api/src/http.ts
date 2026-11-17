@@ -11,6 +11,7 @@ import type { NestExpressApplication } from '@nestjs/platform-express';
 import type { Request, Response, NextFunction } from 'express';
 import { map } from 'rxjs';
 import { ReadinessUnavailable } from './health/readiness.service';
+import { ApiError } from './api-error';
 
 function requestId(response: Response): string {
   return String(response.getHeader('X-Request-Id'));
@@ -32,6 +33,9 @@ class SafeExceptionFilter implements ExceptionFilter {
     const response = host.switchToHttp().getResponse<Response>();
     const status =
       exception instanceof HttpException ? exception.getStatus() : 500;
+    if (exception instanceof ApiError && exception.retryAfter !== undefined) {
+      response.setHeader('Retry-After', exception.retryAfter);
+    }
     const errors: Record<number, { code: string; message: string }> = {
       400: { code: 'VALIDATION_ERROR', message: 'Invalid request.' },
       403: { code: 'FORBIDDEN', message: 'Request is not allowed.' },
@@ -43,19 +47,21 @@ class SafeExceptionFilter implements ExceptionFilter {
     };
     response.status(status).json({
       error:
-        exception instanceof ReadinessUnavailable
-          ? {
-              code: 'SERVICE_UNAVAILABLE',
-              message: 'Service dependencies are not ready.',
-              details: exception.failedChecks.map((path) => ({
-                path,
-                message: 'Check failed.',
-              })),
-            }
-          : (errors[status] ?? {
-              code: 'INTERNAL_ERROR',
-              message: 'An unexpected error occurred.',
-            }),
+        exception instanceof ApiError
+          ? { code: exception.code, message: exception.safeMessage }
+          : exception instanceof ReadinessUnavailable
+            ? {
+                code: 'SERVICE_UNAVAILABLE',
+                message: 'Service dependencies are not ready.',
+                details: exception.failedChecks.map((path) => ({
+                  path,
+                  message: 'Check failed.',
+                })),
+              }
+            : (errors[status] ?? {
+                code: 'INTERNAL_ERROR',
+                message: 'An unexpected error occurred.',
+              }),
       requestId: requestId(response),
     });
   }

@@ -1,6 +1,6 @@
 # Requirements
 
-The document/RAG requirements below remain planned. S00–S01 verify health contracts, initial workspace/configuration, local infrastructure reproducibility, and database/vector integrity primitives in FR-09 and NFR-01/03/04/05/06; none of those broader requirements is complete yet. Architectural defaults and public DTOs are authoritative in [system overview](../architecture/system-overview.md) and [API contracts](../architecture/api-contracts.md).
+S02 verifies FR-01 and the document-management API portion of FR-02, including private originals, quotas, pagination and compensated deletion. Uploads stay pending; processing behavior remains S03 and product UI remains S06. S00–S02 also verify health/contracts, workspace/configuration, infrastructure reproducibility and database/vector integrity primitives in FR-09 and NFR-01/02/03/04/05/06; those broader requirements remain partial. Architectural defaults and public DTOs are authoritative in [system overview](../architecture/system-overview.md) and [API contracts](../architecture/api-contracts.md). See [S02 evidence](../features/stages/S02-document-management.md#verification-evidence).
 
 ## Functional requirements
 

@@ -1,5 +1,7 @@
 # REST API contracts
 
+S02 implements health and upload/list/detail/delete. Generated [OpenAPI 3.1](openapi.json) uses the browser-safe shared response schemas and includes the multipart request schema, response examples, statuses, reusable errors, and admission limits. Regenerate with `pnpm api:openapi`; `pnpm test` checks for drift. Reprocess, search, and ask below remain planned for S03–S05. No Swagger UI or public file route is installed.
+
 ## Conventions
 
 Base path `/api`; JSON UTF-8 except multipart upload and empty 204. UUID IDs; ISO 8601 UTC timestamps. Character limits/offsets use UTF-16 code units, with truncation only at valid Unicode boundaries. Validate requests with shared Zod schemas at the API boundary, reject unknown JSON/query fields, trim queries/questions, and never rely on client validation. JSON request body maximum 16 KiB. UUID arrays contain 1–20 unique values when supplied; omission means all ready documents. Unknown filter IDs return 404; known non-ready documents contribute no evidence.
@@ -69,6 +71,8 @@ Query: `limit` integer default 20, range 1–100; `cursor` opaque validated curs
 ```
 
 Cursor encodes the last item's immutable creation time and UUID, bound to the current status filter; tampered/malformed/filter-mismatched cursors return 400. No total count required. Include deleting rows until cleanup completes. Fetch limit+1 to determine nextCursor.
+
+S02 signs cursors with a process-local HMAC key. Cursors expire on API restart; restart listing without a cursor after a 400. Pagination is stable for an unchanged dataset; status changes may move rows between filtered pages.
 
 ### GET /api/documents/:id — S02
 

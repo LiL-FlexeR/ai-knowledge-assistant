@@ -94,6 +94,8 @@ try {
   run('pnpm', ['db:generate']);
   run('pnpm', ['--filter', '@aka/shared', 'build']);
   run('pnpm', ['--filter', '@aka/api', 'test:integration']);
+  run('pnpm', ['--filter', '@aka/api', 'build']);
+  run('node', ['scripts/document-rest-demo.mjs']);
   run('pnpm', [
     '--filter',
     '@aka/api',
@@ -107,7 +109,7 @@ try {
     '--exit-code',
   ]);
   console.log(
-    'Isolated migrations, runtime privileges, vector and readiness checks passed.',
+    'Isolated migrations, runtime privileges, vectors, readiness, document lifecycle and REST demo passed.',
   );
 } catch (error) {
   console.error(error.message);

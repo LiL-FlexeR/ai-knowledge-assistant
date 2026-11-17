@@ -53,12 +53,7 @@ describe('HTTP contracts', () => {
     expect(second.headers['x-request-id']).not.toBe(body.requestId);
   });
 
-  it.each([
-    '/api/documents',
-    '/api/search',
-    '/api/chat/ask',
-    '/api/private-secret-canary',
-  ])(
+  it.each(['/api/search', '/api/chat/ask', '/api/private-secret-canary'])(
     'keeps unimplemented/unknown routes behind a safe 404 envelope: %s',
     async (path) => {
       const response = await request(app.getHttpServer()).get(path).expect(404);

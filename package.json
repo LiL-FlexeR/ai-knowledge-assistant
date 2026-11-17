@@ -13,13 +13,14 @@
     "lint": "eslint . --max-warnings 0 && prettier --check apps packages scripts compose*.yaml package.json pnpm-workspace.yaml tsconfig.base.json eslint.config.mjs .prettierrc.json",
     "format": "prettier --write apps packages scripts compose*.yaml package.json pnpm-workspace.yaml tsconfig.base.json eslint.config.mjs .prettierrc.json",
     "typecheck": "pnpm db:generate && pnpm --filter @aka/shared build && pnpm -r typecheck",
-    "test": "pnpm db:generate && node --test scripts/*.test.mjs && pnpm --filter @aka/shared build && pnpm -r --if-present test",
+    "test": "pnpm db:generate && node --test scripts/*.test.mjs && pnpm --filter @aka/shared build && node scripts/generate-openapi.mjs --check && pnpm -r --if-present test",
     "infra:up": "docker compose up -d --wait db",
     "infra:down": "docker compose down",
     "db:generate": "node scripts/database.mjs generate",
     "db:migrate": "node scripts/with-env.mjs node scripts/database.mjs migrate",
     "db:migrate:dev": "node scripts/with-env.mjs node scripts/database.mjs migrate:dev",
-    "test:integration": "node scripts/test-integration.mjs"
+    "test:integration": "node scripts/test-integration.mjs",
+    "api:openapi": "pnpm --filter @aka/shared build && node scripts/generate-openapi.mjs"
   },
   "devDependencies": {
     "@eslint/js": "9.39.5",

@@ -1,6 +1,6 @@
 # Implementation roadmap
 
-**Status: S00–S01 complete; S02–S07 remain unimplemented.** Checks and limitations are recorded in [S00 evidence](stages/S00-project-setup.md#verification-evidence) and [S01 evidence](stages/S01-database-and-infrastructure.md#verification-evidence). This is the primary execution plan for future sessions. Execute exactly the requested stage, verify its dependencies in the repository, and stop before the next stage. If prerequisites are missing, report the dependency instead of creating undocumented substitutes.
+**Status: S00–S02 complete; S03–S07 remain unimplemented.** Checks and limitations are recorded in [S00 evidence](stages/S00-project-setup.md#verification-evidence), [S01 evidence](stages/S01-database-and-infrastructure.md#verification-evidence), and [S02 evidence](stages/S02-document-management.md#verification-evidence). This is the primary execution plan for future sessions. Execute exactly the requested stage, verify its dependencies in the repository, and stop before the next stage. If prerequisites are missing, report the dependency instead of creating undocumented substitutes.
 
 Read [AGENTS.md](../../AGENTS.md), [product requirements](../product/requirements.md), and relevant [architecture](../architecture/README.md). Detailed stage documents own execution detail; public behavior remains governed by [API contracts](../architecture/api-contracts.md). Verify current stable tooling during implementation; commands below are planned until their owning stage introduces them.
 
@@ -76,25 +76,25 @@ Completion evidence belongs in the final verification section of each stage docu
 
 **Implementation tasks**
 
-- [ ] Implement bounded multipart validation, generated file paths, serialized quota admission, and 201/pending response.
-- [ ] Implement cursor list/detail, idempotent compensated deletion, safe errors, and orphan/deleting cleanup.
-- [ ] Publish shared DTO/OpenAPI contracts and route admission limits; document that pending does not process yet.
+- [x] Implement bounded multipart validation, generated file paths, serialized quota admission, and 201/pending response.
+- [x] Implement cursor list/detail, idempotent compensated deletion, safe errors, and orphan/deleting cleanup.
+- [x] Publish shared DTO/OpenAPI contracts and route admission limits; document that pending does not process yet.
 
 **Expected deliverables**
 
-- [ ] Documents module, local file store, public schemas, and document API tests.
+- [x] Documents module, local file store, public schemas, and document API tests.
 
 **Acceptance criteria**
 
-- [ ] Supported files persist; invalid/oversize/quota failures do not leak state; pagination is stable; deletion retries complete and files are private.
+- [x] Supported files persist; invalid/oversize/quota failures do not leak state; pagination is stable; deletion retries complete and files are private.
 
 **Required tests**
 
-- [ ] Validation/path/quota unit tests; real database/storage upload/list/detail/delete and compensation/concurrent-admission API tests.
+- [x] Validation/path/quota unit tests; real database/storage upload/list/detail/delete and compensation/concurrent-admission API tests.
 
 **Definition of Done**
 
-- [ ] Document-management contracts and failure paths pass; ingestion remains explicitly unimplemented and roadmap evidence is recorded.
+- [x] Document-management contracts and failure paths pass; ingestion remains explicitly unimplemented and roadmap evidence is recorded.
 
 ## S03 — Document Ingestion
 

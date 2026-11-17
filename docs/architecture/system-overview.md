@@ -50,6 +50,8 @@ S00–S01 implement the API configuration schema and database/storage readiness.
 | `OPENAI_CHAT_MODEL` | Required from S05; verify a stable structured-output Responses model and tokenizer in S05, record exact identifier in `.env.example` and ADR-002 |
 | `PIPELINE_VERSION` | `v1`; extraction/normalization/chunking revision |
 | `MAX_UPLOAD_BYTES` | 10485760 (10 MiB), one file per request |
+| `MAX_UPLOAD_STREAMS`, `UPLOAD_TIMEOUT_MS` | 2 concurrent multipart streams; 60000 ms for receipt/validation; configurable downward |
+| `UPLOAD_REQUESTS_PER_MINUTE`, `DOCUMENT_REQUESTS_PER_MINUTE` | 10 uploads; 120 list/detail/delete requests combined per socket client; configurable downward |
 | `MAX_PDF_PAGES`, `MAX_EXTRACTED_CHARS` | 100; 500000 UTF-16 code units |
 | `MAX_DOCUMENT_TOKENS`, `MAX_CHUNKS` | 100000; 256; reject excess rather than silently truncate |
 | `MAX_DOCUMENTS`, `MAX_STORED_BYTES` | 100; 209715200 (200 MiB), originals including pending/deleting reservations |
@@ -69,4 +71,6 @@ Limits may be lowered without a redesign. Raising them requires checking memory,
 
 S00 caps resource limits at the documented defaults (retrieval topK remains 1–10), fixes embedding dimensions to 1536 and ingestion concurrency to one, and validates overlap below chunk size. Raising those caps requires a reviewed configuration/documentation change. S01 readiness verifies actual vector dimension and stored ready profile/model/dimensions/pipeline compatibility; provider/tokenizer compatibility remains for later stages.
 
-Per-route request limits and safe storage rules are owned by [security](security.md). Public processing states and error contracts are owned by [API contracts](api-contracts.md). [README](../../README.md) distinguishes available S00/S01 commands from planned later-stage commands.
+S02 implements the documents module, private local store, serialized quota admission, signed pagination, and deletion compensation. Startup and hourly reconciliation resume deleting rows and remove only generated, unreferenced originals/staging files older than one hour. Reconciliation faults log safe messages and retry; they do not prevent liveness startup. No ingestion runner is installed, so uploads remain pending. Filesystem and database work are separate; transactions contain no streaming or filesystem operations.
+
+Per-route request limits and safe storage rules are owned by [security](security.md). Public processing states and error contracts are owned by [API contracts](api-contracts.md). [README](../../README.md) distinguishes available S00–S02 commands from planned later-stage commands.

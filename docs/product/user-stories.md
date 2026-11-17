@@ -1,14 +1,14 @@
 # User stories
 
-All stories are planned; acceptance requires observable behavior plus tests from the owning stage. Refer to [contracts](../architecture/api-contracts.md) for exact schemas/status codes.
+Checked API criteria below are verified in [S02 evidence](../features/stages/S02-document-management.md#verification-evidence). Other stories and product UI remain planned; acceptance requires observable behavior plus tests from the owning stage. Refer to [contracts](../architecture/api-contracts.md) for exact schemas/status codes.
 
 ## US-01 — Upload a supported document (S02)
 
 As a user, I want to upload a PDF, TXT, or Markdown file so I can ask about its contents.
 
-- [ ] A valid supported file within 10 MiB returns 201 with a generated ID, canonical MIME, size, filename, and pending state.
-- [ ] The original is stored under an API-generated private path; duplicate display names do not overwrite files.
-- [ ] Empty text, invalid UTF-8/binary text, unsupported/conflicting format, oversize, and capacity failures return the specified error without a retained metadata row or staging leak.
+- [x] A valid supported file within 10 MiB returns 201 with a generated ID, canonical MIME, size, filename, and pending state.
+- [x] The original is stored under an API-generated private path; duplicate display names do not overwrite files.
+- [x] Empty text, invalid UTF-8/binary text, unsupported/conflicting format, oversize, and capacity failures return the specified error without a retained metadata row or staging leak.
 
 ## US-02 — Inspect processing (S03/S06)
 
@@ -23,8 +23,8 @@ As a user, I want to see when a file is searchable and why processing failed.
 
 As a user, I want to browse and delete documents so obsolete content stops influencing answers.
 
-- [ ] Cursor pagination yields no duplicates in a stable dataset; detail returns the same document shape.
-- [ ] Delete hides evidence before cleanup, then returns 204 only after file/chunk/metadata removal; repeating it is safe.
+- [x] Cursor pagination yields no duplicates in a stable dataset; detail returns the same document shape.
+- [x] Delete hides evidence before cleanup, then returns 204 only after file/chunk/metadata removal; repeating it is safe.
 - [ ] A failed cleanup is visible and can be retried; deleting during ingestion cannot recreate the index.
 
 ## US-04 — Search semantically (S04)

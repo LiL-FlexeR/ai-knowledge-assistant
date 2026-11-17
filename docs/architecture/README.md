@@ -1,6 +1,6 @@
 # Architecture guide
 
-These documents specify target behavior. S00–S01 implement the workspace, liveness/readiness/configuration/error foundation, minimal web shell, local Compose runtime, and Prisma/pgvector persistence primitives. Document APIs and RAG runtime behavior remain planned.
+These documents specify target behavior. S00–S02 implement the workspace, liveness/readiness/configuration/error foundation, minimal web shell, local Compose runtime, Prisma/pgvector persistence primitives, and private document upload/list/detail/delete with compensated cleanup. Ingestion and RAG runtime behavior remain planned; uploads stay pending. The [generated OpenAPI](openapi.json) describes implemented routes only.
 
 | Document | Owns |
 | --- | --- |
