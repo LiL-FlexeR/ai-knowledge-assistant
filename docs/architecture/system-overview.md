@@ -31,7 +31,7 @@ Controllers only validate transport, invoke application services, and map respon
 
 ## Configuration
 
-S00–S01 implement the API configuration schema and database/storage readiness. Blank database URLs allow liveness only; readiness reports 503. Database connections are lazy, shared by dependency injection, bounded by a five-connection pool and connection/statement timeouts, and disconnected on shutdown. Readiness probes private storage with a generated temporary file and removes only its own probe. S03 adds AI operations and S05 generation settings. Only require the key when AI-backed operations become enabled; missing credentials then produce a documented disabled/not-ready state. From S03 the full Compose profile requires the key. Fail fast on malformed configuration with variable names only. S00 rejects `NEXT_PUBLIC_*` settings; shared schemas contain no configuration or secrets. These are project defaults, not measured quality or performance claims.
+S00–S01 implement the API configuration schema and database/storage readiness. Blank database URLs allow liveness only; readiness reports 503. Database connections are lazy, shared by dependency injection, bounded by a five-connection pool and connection/statement timeouts, and disconnected on shutdown. Readiness probes private storage with a generated temporary file and removes only its own probe. S03 adds AI operations and S05 generation settings. Only require the key when AI-backed operations become enabled; missing credentials then produce a documented disabled/not-ready state. From S03 the full Compose profile requires the key; S05 also requires the reviewed generation model for readiness. Missing generation configuration does not block ingestion or search. Fail fast on malformed configuration with variable names only. S00 rejects `NEXT_PUBLIC_*` settings; shared schemas contain no configuration or secrets. These are project defaults, not measured quality or performance claims.
 
 | Variable | Default or rule |
 | --- | --- |
@@ -47,11 +47,11 @@ S00–S01 implement the API configuration schema and database/storage readiness.
 | `OPENAI_API_KEY` | Server-only secret, no default |
 | `OPENAI_EMBEDDING_MODEL` | `text-embedding-3-small` |
 | `EMBEDDING_DIMENSIONS`, `EMBEDDING_PROFILE_ID` | 1536; `openai-small-1536-v1`; reject mismatch with stored ready profiles |
-| `OPENAI_CHAT_MODEL` | Required from S05; verify a stable structured-output Responses model and tokenizer in S05, record exact identifier in `.env.example` and ADR-002 |
+| `OPENAI_CHAT_MODEL` | `gpt-5.4-mini-2026-03-17` only; explicit setting required for generation/readiness, no fallback. `o200k_base`, reasoning `none`; see ADR-002 for capabilities, pricing and unverified account access |
 | `PIPELINE_VERSION` | `v1`; extraction/normalization/chunking revision |
 | `MAX_UPLOAD_BYTES` | 10485760 (10 MiB), one file per request |
 | `MAX_UPLOAD_STREAMS`, `UPLOAD_TIMEOUT_MS` | 2 concurrent multipart streams; 60000 ms for receipt/validation; configurable downward |
-| `UPLOAD_REQUESTS_PER_MINUTE`, `DOCUMENT_REQUESTS_PER_MINUTE`, `SEARCH_REQUESTS_PER_MINUTE` | 10 uploads/reprocess combined; 120 list/detail/delete combined; 10 searches per socket client; configurable downward |
+| `UPLOAD_REQUESTS_PER_MINUTE`, `DOCUMENT_REQUESTS_PER_MINUTE`, `SEARCH_REQUESTS_PER_MINUTE`, `ASK_REQUESTS_PER_MINUTE` | 10 uploads/reprocess combined; 120 list/detail/delete combined; separate 10 search and 10 ask requests per socket client; configurable downward |
 | `MAX_PDF_PAGES`, `MAX_EXTRACTED_CHARS` | 100; 500000 UTF-16 code units |
 | `MAX_DOCUMENT_TOKENS`, `MAX_CHUNKS` | 100000; 256; reject excess rather than silently truncate |
 | `MAX_DOCUMENTS`, `MAX_STORED_BYTES` | 100; 209715200 (200 MiB), originals including pending/deleting reservations |
@@ -73,7 +73,7 @@ S00 caps resource limits at the documented defaults (retrieval topK remains 1–
 
 S02 implements the documents module, private local store, serialized quota admission, signed pagination, and deletion compensation. Startup and hourly reconciliation resume deleting rows and remove only generated, unreferenced originals/staging files older than one hour. Reconciliation faults log safe messages and retry; they do not prevent liveness startup. S03 installs one scanner/worker, which processes oldest pending rows only with locally valid AI configuration and database/profile compatibility. Interrupted processing becomes failed on startup; pending resumes. A whole-run AbortController also fences extraction, provider work, deletion and shutdown. Filesystem and database work are separate; transactions contain no streaming or filesystem operations.
 
-Per-route request limits and safe storage rules are owned by [security](security.md). Public processing states and error contracts are owned by [API contracts](api-contracts.md). [README](../../README.md) distinguishes available S00–S04 commands from planned later-stage commands.
+Per-route request limits and safe storage rules are owned by [security](security.md). Public processing states and error contracts are owned by [API contracts](api-contracts.md). [README](../../README.md) distinguishes available S00–S05 commands from planned later-stage commands.
 
 ## S03 runtime choices
 
@@ -86,3 +86,9 @@ Missing `OPENAI_API_KEY` preserves upload/list/detail/delete and pending rows, w
 The retrieval module exports `RetrievalService` and owns a focused exact SQL reader and source mapper. Search checks existing filter IDs, database/vector/profile compatibility and eligible ready documents before embedding. Query text alone uses the existing model/dimensions and `cl100k_base` token policy. SQL binds vector, UUID arrays, profile fields and limit; it joins ready/current-run documents and selects scalar metadata/content/location/distance only. The mapper validates stored spans and creates plain-text excerpts at Unicode boundaries. No migration or new package is required.
 
 Interactive embedding requests never queue behind full outbound capacity: they return 429 with Retry-After. Ingestion retains its bounded semaphore wait. Search uses the existing 65-second `ASK_TIMEOUT_MS` operation budget and cancels on disconnect. An empty eligible corpus returns a successful limitation even without an AI key; configured/profile/storage/provider errors remain distinct.
+
+## S05 question answering implementation
+
+`chat` consumes the internal complete-span/processing-run retrieval result; the public search DTO is unchanged. It admits complete spans under 4000 `o200k_base` tokens, suppresses >50% overlap in the same document/unit, freezes the source map, and serializes question/evidence as user data under `grounded-answer-v1` system instructions. The full serialized Responses request (including schema, metadata and wrappers) is counted with an additional 1024-token framing allowance; input must fit 272000 tokens and input plus the output reservation must fit the 400000-token window. This local count is a conservative admission estimate, not billed usage.
+
+One `GroundedAnswerClient` call uses the existing pinned OpenAI SDK, strict JSON schema, reasoning disabled, no tools, no streaming/history, disabled automatic truncation and `store: false`. The provider output cap is 800 tokens, with incomplete output rejected rather than shown partially. Embedding and generation share the same semaphore and extracted retry/deadline policy; interactive generation rejects full capacity immediately. The whole ask deadline includes retrieval, context preparation, generation, retries and final ready/run/model/dimension/profile/pipeline checks on cited documents only. No database migration or new package is needed. Readiness remains a local configuration check; no account-access or paid-model health probe is performed.

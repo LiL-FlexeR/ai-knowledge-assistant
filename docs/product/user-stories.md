@@ -41,10 +41,12 @@ Verified with known-vector/fake-provider evidence in [S04](../features/stages/S0
 
 As a user, I want answers with inspectable references so I can check their support.
 
-- [ ] Every returned factual statement references at least one admitted chunk ID through a server-created citation map.
-- [ ] PDF references show physical pages; TXT/Markdown show document/section/lines without page inventions.
-- [ ] Unknown citation IDs and malformed/truncated generation fail safely; provider output cannot set file locations.
-- [ ] Multiple-section and conflicting-evidence examples show appropriate references and evidence limitations.
+- [x] Every returned factual statement references at least one admitted chunk ID through a server-created citation map.
+- [x] PDF references show physical pages; TXT/Markdown show document/section/lines without page inventions.
+- [x] Unknown citation IDs and malformed/truncated generation fail safely; provider output cannot set file locations.
+- [x] Multiple-section and conflicting-evidence examples show appropriate references and evidence limitations.
+
+API criteria verified with fake structured outputs and actual stored spans in [S05 evidence](../features/stages/S05-ai-question-answering.md#verification-evidence). Source cards/visual presentation remain S06; real answer support and injection resistance remain unmeasured.
 
 ## US-06 — Understand missing evidence (S05/S06)
 

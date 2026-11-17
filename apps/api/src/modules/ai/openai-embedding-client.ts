@@ -1,12 +1,11 @@
-import { setTimeout as delay } from 'node:timers/promises';
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import OpenAI from 'openai';
-import { abortable } from '../../abortable';
 import { API_CONFIG } from '../../config/config.module';
 import type { Environment } from '../../config/environment';
 import { serializeVector } from '../../database/vector-sql';
 import { ProcessingFailure } from '../../processing-error';
 import { AiCapacity } from './ai-capacity';
+import { runAiRequest } from './ai-request';
 import { EmbeddingClient } from './embedding-client';
 import type {
   EmbeddingInput,
@@ -75,21 +74,7 @@ export function mapEmbeddings(
     );
   }
 }
-export function retryableProviderError(error: unknown): boolean {
-  return (
-    error instanceof OpenAI.APIConnectionError ||
-    (error instanceof OpenAI.APIError &&
-      (error.status === 429 ||
-        (error.status !== undefined && error.status >= 500)))
-  );
-}
-function timeout(): ProcessingFailure {
-  return new ProcessingFailure(
-    'AI_TIMEOUT',
-    'Embedding operation exceeded its deadline.',
-    true,
-  );
-}
+export { retryableProviderError } from './ai-request';
 
 @Injectable()
 export class OpenAIEmbeddingClient extends EmbeddingClient {
@@ -121,17 +106,7 @@ export class OpenAIEmbeddingClient extends EmbeddingClient {
         'AI is not configured.',
         true,
       );
-    const operation = new AbortController();
-    const timer = setTimeout(
-      () => operation.abort(timeout()),
-      Math.max(1, deadline - Date.now()),
-    );
-    const combined = AbortSignal.any([signal, operation.signal]);
-    try {
-      return await this.embedBatches(inputs, combined, deadline, options);
-    } finally {
-      clearTimeout(timer);
-    }
+    return this.embedBatches(inputs, signal, deadline, options);
   }
   private async embedBatches(
     inputs: EmbeddingInput[],
@@ -145,114 +120,50 @@ export class OpenAIEmbeddingClient extends EmbeddingClient {
       inputs,
       this.config.EMBEDDING_BATCH_SIZE,
     )) {
-      const result = await this.capacity.run(
+      const result = await runAiRequest(
+        this.config,
+        this.capacity,
+        this.logger,
+        'ai.embedding',
+        this.config.OPENAI_EMBEDDING_MODEL,
         signal,
-        async () => {
-          const started = Date.now();
-          for (let attempt = 0; ; attempt++) {
-            signal.throwIfAborted();
-            // Never begin an attempt whose full timeout cannot fit.
-            if (Date.now() + this.config.AI_REQUEST_TIMEOUT_MS > deadline)
-              throw timeout();
-            const attemptController = new AbortController();
-            const attemptSignal = AbortSignal.any([
-              signal,
-              attemptController.signal,
-            ]);
-            const attemptTimer = setTimeout(
-              () => attemptController.abort(timeout()),
-              this.config.AI_REQUEST_TIMEOUT_MS,
+        deadline,
+        async (attemptSignal) => {
+          const response = await this.sdk!.embeddings.create(
+            {
+              model: this.config.OPENAI_EMBEDDING_MODEL,
+              dimensions: this.config.EMBEDDING_DIMENSIONS,
+              input: batch.map((input) => input.content),
+              encoding_format: 'float',
+            },
+            {
+              signal: attemptSignal,
+              timeout: this.config.AI_REQUEST_TIMEOUT_MS,
+              maxRetries: 0,
+            },
+          );
+          if (
+            !response ||
+            response.model !== this.config.OPENAI_EMBEDDING_MODEL ||
+            !Array.isArray(response.data)
+          )
+            throw new ProcessingFailure(
+              'AI_OUTPUT_INVALID',
+              'Embedding model does not match the active profile.',
             );
-            try {
-              const response = await abortable(
-                this.sdk!.embeddings.create(
-                  {
-                    model: this.config.OPENAI_EMBEDDING_MODEL,
-                    dimensions: this.config.EMBEDDING_DIMENSIONS,
-                    input: batch.map((input) => input.content),
-                    encoding_format: 'float',
-                  },
-                  {
-                    signal: attemptSignal,
-                    timeout: this.config.AI_REQUEST_TIMEOUT_MS,
-                    maxRetries: 0,
-                  },
-                ),
-                attemptSignal,
-              );
-              if (
-                !response ||
-                response.model !== this.config.OPENAI_EMBEDDING_MODEL ||
-                !Array.isArray(response.data)
-              )
-                throw new ProcessingFailure(
-                  'AI_OUTPUT_INVALID',
-                  'Embedding model does not match the active profile.',
-                );
-              const mapped = mapEmbeddings(response.data, batch.length);
-              const usage = response.usage?.prompt_tokens;
-              const tokens =
-                Number.isInteger(usage) && usage >= 0 ? usage : null;
-              this.logger.log({
-                operation: 'ai.embedding',
-                provider: 'openai',
-                model: this.config.OPENAI_EMBEDDING_MODEL,
-                requestId: response._request_id,
-                attempts: attempt + 1,
-                inputTokens: tokens,
-                latencyMs: Date.now() - started,
-              });
-              return { vectors: mapped, inputTokens: tokens };
-            } catch (error) {
-              if (signal.aborted) throw signal.reason;
-              const timedOut =
-                attemptController.signal.aborted ||
-                error instanceof OpenAI.APIConnectionTimeoutError;
-              if (error instanceof ProcessingFailure && !timedOut) throw error;
-              this.logger.warn({
-                operation: 'ai.embedding',
-                model: this.config.OPENAI_EMBEDDING_MODEL,
-                attempt: attempt + 1,
-                code: timedOut ? 'AI_TIMEOUT' : 'AI_UPSTREAM_ERROR',
-                latencyMs: Date.now() - started,
-              });
-              if (
-                (!timedOut && !retryableProviderError(error)) ||
-                attempt >= this.config.AI_MAX_RETRIES
-              )
-                throw timedOut
-                  ? timeout()
-                  : new ProcessingFailure(
-                      'AI_UPSTREAM_ERROR',
-                      'Embedding provider request failed.',
-                      retryableProviderError(error),
-                    );
-              const header =
-                error instanceof OpenAI.APIError
-                  ? error.headers?.get('retry-after')
-                  : null;
-              const seconds = header ? Number(header) : NaN;
-              const retryAt = header ? Date.parse(header) : NaN;
-              const requested = Number.isFinite(seconds)
-                ? seconds * 1000
-                : Number.isFinite(retryAt)
-                  ? retryAt - Date.now()
-                  : 0;
-              const backoff = Math.max(
-                500 * 2 ** attempt + Math.floor(Math.random() * 100),
-                Math.min(5000, Math.max(0, requested)),
-              );
-              if (
-                Date.now() + backoff + this.config.AI_REQUEST_TIMEOUT_MS >
-                deadline
-              )
-                throw timeout();
-              await delay(backoff, undefined, { signal });
-            } finally {
-              clearTimeout(attemptTimer);
-            }
-          }
+          const mapped = mapEmbeddings(response.data, batch.length);
+          const usage = response.usage?.prompt_tokens;
+          const tokens = Number.isInteger(usage) && usage >= 0 ? usage : null;
+          return {
+            vectors: mapped,
+            inputTokens: tokens,
+            requestId: response._request_id,
+          };
         },
+        (result) => ({
+          requestId: result.requestId,
+          inputTokens: result.inputTokens,
+        }),
         options.waitForCapacity,
       );
       vectors.push(...result.vectors);

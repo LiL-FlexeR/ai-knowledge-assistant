@@ -4,6 +4,7 @@ import { HealthModule } from './health/health.module';
 import { DocumentsModule } from './modules/documents/documents.module';
 import { IngestionModule } from './modules/ingestion/ingestion.module';
 import { RetrievalModule } from './modules/retrieval/retrieval.module';
+import { ChatModule } from './modules/chat/chat.module';
 
 @Module({
   imports: [
@@ -12,6 +13,7 @@ import { RetrievalModule } from './modules/retrieval/retrieval.module';
     DocumentsModule,
     IngestionModule,
     RetrievalModule,
+    ChatModule,
   ],
 })
 export class AppModule {}

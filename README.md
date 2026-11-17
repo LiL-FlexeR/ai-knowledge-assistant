@@ -1,8 +1,8 @@
 # AI Knowledge Assistant
 
-A planned document question-answering application using Retrieval-Augmented Generation (RAG). Upload PDF, TXT, or Markdown files, search their content, and ask questions with references to the supporting passages.
+A local document question-answering API and planned product interface using Retrieval-Augmented Generation (RAG). Upload PDF, TXT, or Markdown files, search their content, and ask questions with references to the supporting passages.
 
-**Status: S00–S04 implemented and verified.** The workspace provides API liveness/readiness, a minimal Next.js shell, local Compose services, reviewed Prisma migrations, PostgreSQL/pgvector primitives, and private document upload/list/detail/delete with quotas and retryable cleanup. S03 adds bounded source-aware extraction/chunking, OpenAI embeddings, atomic vector publication, restart recovery and manual reprocessing. S04 adds exact semantic search over ready/profile-compatible generations with stored source locations and explicit evidence limitations. Question answering and product screens remain planned in S05–S07. See [S04 verification evidence](docs/features/stages/S04-semantic-retrieval.md#verification-evidence).
+**Status: S00–S05 implemented and verified.** The workspace provides API liveness/readiness, a minimal Next.js shell, local Compose services, reviewed Prisma migrations, PostgreSQL/pgvector primitives, and private document upload/list/detail/delete with quotas and retryable cleanup. S03 adds bounded source-aware extraction/chunking, OpenAI embeddings, atomic vector publication, restart recovery and manual reprocessing. S04 adds exact semantic search over ready/profile-compatible generations with stored source locations and explicit evidence limitations. S05 adds structured question answering, server-created citations, explicit insufficiency/refusal/errors and cited-generation consistency checks. Product screens and live quality evaluation remain S06–S07. See [S05 verification evidence](docs/features/stages/S05-ai-question-answering.md#verification-evidence).
 
 ## Problem and planned features
 
@@ -127,7 +127,7 @@ curl -i -X DELETE 'http://localhost:3001/api/documents/<id>'
 curl -i -X DELETE 'http://localhost:3001/api/documents/<id>'
 ```
 
-Use a quoted URL after substituting the UUID; `<id>` is an illustrative placeholder. Upload exactly one `file` and no other fields. PDF, UTF-8 TXT, `.md` and `.markdown` are supported, with server-verified bytes and canonical MIME. The API returns 201 with `Location` and pending metadata after storing the original; a single scanner processes oldest pending rows when AI is configured. At most five pending/processing documents are admitted. Poll detail for ready/failed; without a key delete pending uploads to free capacity. Search is available through the REST route below; chat and product UI remain S05–S06.
+Use a quoted URL after substituting the UUID; `<id>` is an illustrative placeholder. Upload exactly one `file` and no other fields. PDF, UTF-8 TXT, `.md` and `.markdown` are supported, with server-verified bytes and canonical MIME. The API returns 201 with `Location` and pending metadata after storing the original; a single scanner processes oldest pending rows when AI is configured. At most five pending/processing documents are admitted. Poll detail for ready/failed; without a key delete pending uploads to free capacity. Search is available through the REST route below; ask is available below, and product UI remains S06.
 
 Defaults are 10 MiB/file, two simultaneous streams, a 60-second receipt/validation deadline, 100 documents/200 MiB retained originals, and 10 upload/reprocess requests combined or 120 list/detail/delete requests per client per minute. Settings may be lowered in `.env`; 429 includes `Retry-After`. Mutations accept the exact `WEB_ORIGIN` when an Origin header is present; curl may omit it. GET pagination supports `status` and a signed cursor bound to that filter; cursors expire on API restart.
 
@@ -160,13 +160,29 @@ Search returns passages with chunk IDs, cosine similarities and stored filenames
 
 An empty eligible corpus returns 200/`insufficient_context`/`NO_READY_DOCUMENTS` without embedding; candidates below the cutoff return `NO_RELEVANT_CONTEXT`. Unknown document filters return 404. Missing AI, incompatible profiles, storage faults and provider errors remain distinct errors. Search uses `SEARCH_REQUESTS_PER_MINUTE` (10 by default), the shared two-call AI capacity and the whole-operation `ASK_TIMEOUT_MS` (65000 by default). Full AI capacity returns immediate 429 with Retry-After; disconnect aborts provider work. Queries can incur embedding cost. Host settings load from root `.env`; Compose tuning requires explicit API environment overrides. Required tests/curl demos use fake AI; live semantic quality and the cutoff are uncalibrated.
 
+## Question answering API (S05)
+
+Set server-only `OPENAI_CHAT_MODEL=gpt-5.4-mini-2026-03-17` in root `.env` (also passed to Compose), alongside the OpenAI key. Existing environment files with a blank model must be updated explicitly. Liveness, document management, ingestion and search can still run without generation configuration; full readiness requires both key and model.
+
+```bash
+# Configured-provider smoke only: indexed synthetic evidence and a real key required.
+# This can incur embedding and generation cost; it is not part of normal tests.
+curl -i -H 'Content-Type: application/json' \
+  -d '{"question":"When is the Orion maintenance window?","topK":5}' \
+  http://localhost:3001/api/chat/ask
+```
+
+Ask returns `answered`, `insufficient_context` or `refused`, with statements, server-created citations/excerpts, retrieval counts and nullable provider usage. Complete spans are deduplicated under a 4000 `o200k_base` evidence-token cap. The full prompt/schema/metadata plus framing allowance and 800 output-token reservation must fit the reviewed model budgets. One generation call is allowed before eligible transport retries; malformed, truncated or invalid references return 502 without a repair call. Cited documents changed by deletion/reprocessing return 409; the client may retry explicitly. Separate ask rate limits, shared AI capacity, a whole 65-second deadline and disconnect cancellation bound work. No tools, streaming or persisted chat history. Valid citation IDs establish identity, not factual support.
+
+No paid smoke or account-access check was run: this environment has no OpenAI key. Fake-provider tests establish mechanics, while semantic quality and injection resistance remain unmeasured. Responses use `store: false`; no provider retention guarantee is implied.
+
 ## Environment configuration
 
-The [system overview](docs/architecture/system-overview.md) owns configuration defaults. API validation is implemented for the listed settings, including integer/range bounds, overlap smaller than chunk size, absolute storage paths, and local web origins. Blank database/AI values are treated as absent. S01 readiness checks the database, extension, required vector dimension, stored ready profile/model/dimensions/pipeline, and actual storage I/O. S03 requires local AI configuration for readiness and claims; health never makes provider calls. Invalid settings fail startup with variable names and no values. `NEXT_PUBLIC_*` configuration remains unsupported and rejected by the API.
+The [system overview](docs/architecture/system-overview.md) owns configuration defaults. API validation is implemented for the listed settings, including integer/range bounds, overlap smaller than chunk size, absolute storage paths, and local web origins. Blank database/AI values are treated as absent. S01 readiness checks the database, extension, required vector dimension, stored ready profile/model/dimensions/pipeline, and actual storage I/O. S03 requires a key for ingestion claims; S05 readiness additionally requires the exact reviewed generation model; health never makes provider calls. Invalid settings fail startup with variable names and no values. `NEXT_PUBLIC_*` configuration remains unsupported and rejected by the API.
 
 Root `.env` is private and ignored; `.env.example` contains placeholders. The API and web dev/start scripts explicitly load it, with shell variables taking precedence. Quality checks do not load the private file, and tests use isolated settings. `DATABASE_URL`, `MIGRATION_DATABASE_URL`, local passwords, `OPENAI_API_KEY`, `OPENAI_CHAT_MODEL`, `STORAGE_ROOT`, and the internal proxy target are server-only. No Next.js public configuration exports secrets. The same-origin proxy is planned for S06.
 
-The embedding profile is initially `text-embedding-3-small`, 1,536 dimensions; S03 pins PDF.js 6.5.438, js-tiktoken 1.0.21 (`cl100k_base`) and OpenAI Node SDK 7.57.0, verified on Node 24.22.3. The accepted model/profile/pipeline identifiers are fixed to the v1 configuration; generation selection remains S05. Changing an embedding profile requires coordinated schema/data migration, not just an environment edit.
+The embedding profile is initially `text-embedding-3-small`, 1,536 dimensions; S03 pins PDF.js 6.5.438, js-tiktoken 1.0.21 (`cl100k_base`) and OpenAI Node SDK 7.57.0, verified on Node 24.22.3. The accepted model/profile/pipeline identifiers are fixed to the v1 configuration; S05 fixes generation to `gpt-5.4-mini-2026-03-17`, `o200k_base`, reasoning `none`; no fallback is supported. See [ADR-002](docs/architecture/decisions/ADR-002-rag-design.md#s05-generation-model-and-implementation) for public capability/pricing checks and unverified account access. Changing an embedding profile requires coordinated schema/data migration, not just an environment edit.
 
 ## Development commands
 
@@ -178,7 +194,7 @@ The embedding profile is initially `text-embedding-3-small`, 1,536 dimensions; S
 | `pnpm infra:up`, `pnpm infra:down` | Available (S01) | Start/stop local PostgreSQL; preserve volumes |
 | `pnpm db:generate`, `pnpm db:migrate`, `pnpm db:migrate:dev` | Available (S01) | Generate client, deploy committed SQL/create reviewable migration |
 | `pnpm test:integration` | Available (S01) | Fresh isolated PostgreSQL/pgvector tests and cleanup |
-| `pnpm api:openapi` | Available (S02) | Regenerate implemented health/document/search OpenAPI from shared schemas; `pnpm test` checks drift |
+| `pnpm api:openapi` | Available (S02) | Regenerate implemented health/document/search/ask OpenAPI from shared schemas; `pnpm test` checks drift |
 | `pnpm test:e2e` | S06 | Mock-provider browser workflow checks |
 | `pnpm eval:offline`, `pnpm eval:live` | S07 | Deterministic fixtures; explicit paid AI evaluation |
 
@@ -190,7 +206,7 @@ Run `pnpm lint`, `pnpm typecheck`, `pnpm test`, and `pnpm build`. S00 tests cove
 
 `pnpm test:integration` starts a unique Compose project with the same pinned image, random credentials, a generated `aka_test_<run-id>` database, a random loopback port, tmpfs database data, and temporary storage. It refuses supplied `TEST_DATABASE_URL`/`TEST_STORAGE_ROOT` overrides, ignores normal database targets, checks ownership before writes, replays committed migrations, verifies read-only introspection and schema diff, regenerates the client, and runs real vector/constraint/privilege/readiness and document lifecycle tests. S02 covers supported/invalid uploads, private storage, quota races, stable pagination, safe errors, deletion fencing/compensation/retry, cleanup, admission and stream disconnect/deadline handling; the harness builds the API and runs a curl REST demo too. Cleanup removes only that project and its temporary storage, including after failures; it never removes named volumes. Unit tests also verify rejected production-looking URLs/storage paths and document format/name/path/quota/cursor rules. Normal tests make no database/provider calls and check generated OpenAPI for drift.
 
-S03 adds canonical source/Unicode/chunk tests, real PDF worker fixtures, embedding validation/retry/deadline/semaphore tests, real-database atomic publication/rollback/reprocess/restart/delete races, and a curl processing demo with fake AI. S04 adds query/source/error/admission tests, actual cosine order/tie/cutoff/topK/profile/run/document-filter tests, canonical-source checks and curl search demos. Later stages add context/answer tests, browser workflows and semantic evaluation. There are no measured RAG quality scores yet. See [testing strategy](docs/architecture/testing-strategy.md).
+S03 adds canonical source/Unicode/chunk tests, real PDF worker fixtures, embedding validation/retry/deadline/semaphore tests, real-database atomic publication/rollback/reprocess/restart/delete races, and a curl processing demo with fake AI. S04 adds query/source/error/admission tests, actual cosine order/tie/cutoff/topK/profile/run/document-filter tests, canonical-source checks and curl search demos. S05 adds context/statement/citation/status and Responses-adapter tests, shared retry/capacity/deadline checks, plus real-database citation mapping and deletion/reprocess/rebuild races. Later stages add browser workflows and semantic evaluation. There are no measured RAG quality scores yet. See [testing strategy](docs/architecture/testing-strategy.md).
 
 ## Roadmap and future work
 
@@ -198,4 +214,4 @@ Use the [primary execution roadmap](docs/features/ROADMAP.md): S00 setup → S01
 
 Authentication, deployment hardening, OCR, background queues, streaming, hybrid search, reranking, chat history, additional providers, versioning, S3 storage, and observability dashboards are optional [future work](docs/product/mvp-scope.md). They are not MVP infrastructure.
 
-S00–S04 are complete; S05–S07 remain unimplemented and require an explicit request. Agents should first read [AGENTS.md](AGENTS.md).
+S00–S05 are complete; S06–S07 remain unimplemented and require an explicit request. Agents should first read [AGENTS.md](AGENTS.md).

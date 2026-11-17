@@ -9,6 +9,7 @@ import { serializeVector } from '../../database/vector-sql';
 
 export const vectorRowSchema = z.strictObject({
   chunkId: z.uuid(),
+  processingRunId: z.uuid(),
   documentId: z.uuid(),
   chunkIndex: z.number().int().nonnegative(),
   filename: z.string().min(1).max(255),
@@ -68,6 +69,39 @@ export class VectorReader {
       throw unavailable();
     }
   }
+  async assertUnchanged(sources: readonly VectorRow[]): Promise<void> {
+    try {
+      const rows = await this.client.document.findMany({
+        where: {
+          id: { in: [...new Set(sources.map((source) => source.documentId))] },
+          status: 'ready',
+          embeddingProfileId: this.config.EMBEDDING_PROFILE_ID,
+          embeddingModel: this.config.OPENAI_EMBEDDING_MODEL,
+          embeddingDimensions: this.config.EMBEDDING_DIMENSIONS,
+          pipelineVersion: this.config.PIPELINE_VERSION,
+        },
+        select: { id: true, processingRunId: true },
+      });
+      if (
+        sources.some(
+          (source) =>
+            !rows.some(
+              (row) =>
+                row.id === source.documentId &&
+                row.processingRunId === source.processingRunId,
+            ),
+        )
+      )
+        throw new ApiError(
+          409,
+          'DOCUMENT_CHANGED',
+          'Cited documents changed. Please retry.',
+        );
+    } catch (error) {
+      if (error instanceof ApiError) throw error;
+      throw unavailable();
+    }
+  }
   async nearest(
     vector: readonly number[],
     topK: number,
@@ -81,7 +115,7 @@ export class VectorReader {
         .parse(
           await this.client.$queryRaw`
         SELECT c.id AS "chunkId", c.document_id AS "documentId",
-          c.chunk_index AS "chunkIndex", d.filename, c.content,
+          c.chunk_index AS "chunkIndex", c.processing_run_id AS "processingRunId", d.filename, c.content,
           c.source_location AS location,
           c.embedding <=> ${boundVector}::vector(1536) AS distance
         FROM document_chunks c JOIN documents d ON d.id = c.document_id

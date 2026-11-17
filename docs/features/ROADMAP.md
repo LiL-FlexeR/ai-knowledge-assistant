@@ -1,6 +1,6 @@
 # Implementation roadmap
 
-**Status: S00–S04 complete; S05–S07 remain unimplemented.** Checks and limitations are recorded in [S00 evidence](stages/S00-project-setup.md#verification-evidence), [S01 evidence](stages/S01-database-and-infrastructure.md#verification-evidence), [S02 evidence](stages/S02-document-management.md#verification-evidence), [S03 evidence](stages/S03-document-ingestion.md#verification-evidence), and [S04 evidence](stages/S04-semantic-retrieval.md#verification-evidence). This is the primary execution plan for future sessions. Execute exactly the requested stage, verify its dependencies in the repository, and stop before the next stage. If prerequisites are missing, report the dependency instead of creating undocumented substitutes.
+**Status: S00–S05 complete; S06–S07 remain unimplemented.** Checks and limitations are recorded in [S00 evidence](stages/S00-project-setup.md#verification-evidence), [S01 evidence](stages/S01-database-and-infrastructure.md#verification-evidence), [S02 evidence](stages/S02-document-management.md#verification-evidence), [S03 evidence](stages/S03-document-ingestion.md#verification-evidence), [S04 evidence](stages/S04-semantic-retrieval.md#verification-evidence), and [S05 evidence](stages/S05-ai-question-answering.md#verification-evidence). This is the primary execution plan for future sessions. Execute exactly the requested stage, verify its dependencies in the repository, and stop before the next stage. If prerequisites are missing, report the dependency instead of creating undocumented substitutes.
 
 Read [AGENTS.md](../../AGENTS.md), [product requirements](../product/requirements.md), and relevant [architecture](../architecture/README.md). Detailed stage documents own execution detail; public behavior remains governed by [API contracts](../architecture/api-contracts.md). Verify current stable tooling during implementation; commands below are planned until their owning stage introduces them.
 
@@ -166,25 +166,25 @@ Completion evidence belongs in the final verification section of each stage docu
 
 **Implementation tasks**
 
-- [ ] Select/record a compatible generation model; implement context budget/deduplication and untrusted-evidence prompt.
-- [ ] Implement grounded generation interface, statement/source validation, safe refusal/insufficient/error outcomes, usage and deadlines.
-- [ ] Add POST `/api/chat/ask`, deterministic public answer formatting, and cited-run consistency recheck.
+- [x] Select/record a compatible generation model; implement context budget/deduplication and untrusted-evidence prompt.
+- [x] Implement grounded generation interface, statement/source validation, safe refusal/insufficient/error outcomes, usage and deadlines.
+- [x] Add POST `/api/chat/ask`, deterministic public answer formatting, and cited-run consistency recheck.
 
 **Expected deliverables**
 
-- [ ] Chat module, AI generation adapter, prompt/schema version, ask DTO/OpenAPI, and grounding failure tests.
+- [x] Chat module, AI generation adapter, prompt/schema version, ask DTO/OpenAPI, and grounding failure tests.
 
 **Acceptance criteria**
 
-- [ ] Every answered statement has valid admitted references; invalid/truncated citations fail; no-context skips generation; changed/deleted evidence returns 409.
+- [x] Every answered statement has valid admitted references; invalid/truncated citations fail; no-context skips generation; changed/deleted evidence returns 409.
 
 **Required tests**
 
-- [ ] Context/prompt/status/citation/deadline unit tests; API tests for answers, gaps, conflicts, ambiguity, refusals, injection fixtures and deletion/reprocess races using fake AI.
+- [x] Context/prompt/status/citation/deadline unit tests; API tests for answers, gaps, conflicts, ambiguity, refusals, injection fixtures and deletion/reprocess races using fake AI.
 
 **Definition of Done**
 
-- [ ] Ask contracts pass, chosen model/cost/context checks are documented, and limitations distinguish identity validation from factual support.
+- [x] Ask contracts pass, chosen model/cost/context checks are documented, and limitations distinguish identity validation from factual support.
 
 ## S06 — Frontend
 

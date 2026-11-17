@@ -123,6 +123,138 @@ export const searchSchema = z.discriminatedUnion('status', [
 ]);
 export type SearchResponse = z.infer<typeof searchSchema>;
 export const searchResponseSchema = successEnvelopeSchema(searchSchema);
+export const askRequestSchema = searchRequestSchema
+  .omit({ query: true })
+  .extend({
+    question: z.string().trim().min(1).max(2000),
+  });
+export type AskRequest = z.infer<typeof askRequestSchema>;
+export const sourceIdSchema = z.string().regex(/^S(?:[1-9]|10)$/);
+export const answerStatementSchema = z.strictObject({
+  text: z
+    .string()
+    .trim()
+    .min(1)
+    .max(500)
+    .refine(
+      (text) => !/[\uD800-\uDFFF]/u.test(text) && !/\[S\d+\]/u.test(text),
+    ),
+  sourceIds: z
+    .array(sourceIdSchema)
+    .min(1)
+    .max(10)
+    .refine((ids) => new Set(ids).size === ids.length),
+});
+export type AnswerStatement = z.infer<typeof answerStatementSchema>;
+export const citationSchema = z.strictObject({
+  sourceId: sourceIdSchema,
+  chunkId: z.uuid(),
+  source: sourceSchema,
+});
+export const answerLimitationSchema = z
+  .string()
+  .trim()
+  .min(1)
+  .max(500)
+  .refine((text) => !/[\uD800-\uDFFF]/u.test(text) && !/\[S\d+\]/u.test(text));
+export const askUsageSchema = z.strictObject({
+  embeddingInputTokens: z.number().int().nonnegative().nullable(),
+  generationInputTokens: z.number().int().nonnegative().nullable(),
+  generationOutputTokens: z.number().int().nonnegative().nullable(),
+});
+export function formatAnswer(
+  statements: AnswerStatement[],
+  limitation: string | null,
+): string {
+  return [
+    ...statements.map(
+      ({ text, sourceIds }) =>
+        `${text} ${sourceIds.map((id) => `[${id}]`).join(' ')}`,
+    ),
+    ...(limitation ? [limitation] : []),
+  ].join('\n\n');
+}
+export const askSchema = z
+  .strictObject({
+    status: z.enum(['answered', 'insufficient_context', 'refused']),
+    answer: z.string().min(1),
+    statements: z.array(answerStatementSchema).max(8),
+    citations: z.array(citationSchema).max(10),
+    reason: z
+      .enum([
+        'NO_READY_DOCUMENTS',
+        'NO_RELEVANT_CONTEXT',
+        'EVIDENCE_INSUFFICIENT',
+        'PROVIDER_REFUSAL',
+      ])
+      .nullable(),
+    limitation: answerLimitationSchema.nullable(),
+    retrieval: z.strictObject({
+      requestedTopK: z.number().int().min(1).max(10),
+      matchedChunks: z.number().int().min(0).max(10),
+      contextChunks: z.number().int().min(0).max(10),
+    }),
+    usage: askUsageSchema,
+  })
+  .superRefine((value, ctx) => {
+    const fail = () =>
+      ctx.addIssue({ code: 'custom', message: 'Invalid answer invariants.' });
+    const ids = value.citations.map((citation) => citation.sourceId);
+    const used = new Set(
+      value.statements.flatMap((statement) => statement.sourceIds),
+    );
+    const { requestedTopK, matchedChunks, contextChunks } = value.retrieval;
+    if (
+      contextChunks > matchedChunks ||
+      matchedChunks > requestedTopK ||
+      ids.length > contextChunks ||
+      new Set(ids).size !== ids.length ||
+      new Set(value.citations.map((citation) => citation.chunkId)).size !==
+        ids.length ||
+      ids.some(
+        (id, i) =>
+          Number(id.slice(1)) > contextChunks ||
+          (i > 0 && Number(ids[i - 1]!.slice(1)) >= Number(id.slice(1))),
+      )
+    )
+      fail();
+    if (value.status === 'answered') {
+      if (
+        !value.statements.length ||
+        value.reason !== null ||
+        used.size !== ids.length ||
+        ids.some((id) => !used.has(id)) ||
+        value.answer !== formatAnswer(value.statements, value.limitation)
+      )
+        fail();
+    } else {
+      if (
+        value.statements.length ||
+        ids.length ||
+        !value.limitation ||
+        value.answer !== value.limitation
+      )
+        fail();
+      if (
+        value.status === 'refused'
+          ? value.reason !== 'PROVIDER_REFUSAL'
+          : ![
+              'NO_READY_DOCUMENTS',
+              'NO_RELEVANT_CONTEXT',
+              'EVIDENCE_INSUFFICIENT',
+            ].includes(value.reason ?? '')
+      )
+        fail();
+      if (
+        (value.reason === 'NO_READY_DOCUMENTS' ||
+          value.reason === 'NO_RELEVANT_CONTEXT') &&
+        (matchedChunks !== 0 || contextChunks !== 0)
+      )
+        fail();
+    }
+  });
+export type AskResponse = z.infer<typeof askSchema>;
+export const askResponseSchema = successEnvelopeSchema(askSchema);
 export const documentListQuerySchema = z.strictObject({
   limit: z
     .string()

@@ -1,5 +1,6 @@
 import { isAbsolute, resolve } from 'node:path';
 import { z } from 'zod';
+import { GENERATION_MODEL } from '../modules/ai/generation-model';
 
 const optional = <T extends z.ZodType>(schema: T) =>
   z.preprocess(
@@ -51,7 +52,7 @@ export const environmentSchema = z
     TEST_DATABASE_URL: optional(postgresUrl),
     SHADOW_DATABASE_URL: optional(postgresUrl),
     OPENAI_API_KEY: optional(z.string().trim().min(1)),
-    OPENAI_CHAT_MODEL: optional(z.string().trim().min(1)),
+    OPENAI_CHAT_MODEL: optional(z.literal(GENERATION_MODEL)),
     OPENAI_EMBEDDING_MODEL: z
       .literal('text-embedding-3-small')
       .default('text-embedding-3-small'),
@@ -66,6 +67,7 @@ export const environmentSchema = z
     UPLOAD_REQUESTS_PER_MINUTE: integer(10),
     DOCUMENT_REQUESTS_PER_MINUTE: integer(120),
     SEARCH_REQUESTS_PER_MINUTE: integer(10),
+    ASK_REQUESTS_PER_MINUTE: integer(10),
     MAX_PDF_PAGES: integer(100),
     MAX_EXTRACTED_CHARS: integer(500000),
     MAX_DOCUMENT_TOKENS: integer(100000),

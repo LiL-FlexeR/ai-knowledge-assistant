@@ -1,6 +1,6 @@
 # REST API contracts
 
-S04 implements health, upload/list/detail/delete, background ingestion, reprocess, and semantic search. Generated [OpenAPI 3.1](openapi.json) uses the browser-safe shared response schemas and includes the multipart request schema, response examples, statuses, reusable errors, and admission limits. Regenerate with `pnpm api:openapi`; `pnpm test` checks for drift. Ask remains planned for S05. No Swagger UI or public file route is installed.
+S05 implements health, upload/list/detail/delete, background ingestion, reprocess, semantic search, and structured question answering. Generated [OpenAPI 3.1](openapi.json) uses the browser-safe shared response schemas and includes the multipart request schema, response examples, statuses, reusable errors, and admission limits. Regenerate with `pnpm api:openapi`; `pnpm test` checks for drift. No Swagger UI or public file route is installed.
 
 ## Conventions
 
@@ -142,9 +142,9 @@ Numbers and text above are illustrative fixtures, not measured results. All top-
 | `insufficient_context` | Empty statements/citations; answer and limitation explain the gap; reason `NO_READY_DOCUMENTS`, `NO_RELEVANT_CONTEXT`, or `EVIDENCE_INSUFFICIENT`; no generation for the first two |
 | `refused` | Empty statements/citations; safe answer/limitation; reason `PROVIDER_REFUSAL`; distinct from evidence insufficiency |
 
-The server builds `answer` from validated statements and markers, appending any limitation separately. Return only used citations, in context-ID order (IDs need not be contiguous after unused sources are removed). No claims in limitation beyond describing the evidence gap/conflict. Every source location is server-owned. The UI displays text/statement citation links and safe source cards.
+Statements contain 1–500 trimmed UTF-16 characters, with 1–10 distinct source IDs (`S1`–`S10`); answered permits 1–8 statements. Limitation is null or 1–500 trimmed characters and may describe only an evidence gap/conflict. Unpaired surrogates and embedded `[S<number>]` markers are rejected in model text; markers are server-owned. The server builds `answer` by joining each statement text, a space and its `[S1] [S2]` markers with two LF characters, then appends any limitation as a separate paragraph. Return only used citations, in context-ID order (IDs need not be contiguous after unused sources are removed). No claims in limitation beyond describing the evidence gap/conflict. Every source location is server-owned. The UI displays text/statement citation links and safe source cards.
 
-Search errors also apply. Additionally 409 `DOCUMENT_CHANGED` if cited document runs disappear/change before response, and 502 `AI_OUTPUT_INVALID` for malformed, truncated, uncited, or unknown-ID output. Do not convert provider timeouts to insufficient evidence. The frontend offers a user retry; do not silently regenerate invalid answers.
+Ask has a separate socket-based `ASK_REQUESTS_PER_MINUTE` window (default 10, configurable downward), the same shared outbound AI capacity, JSON body/Host/Origin controls, disconnect cancellation, and one whole `ASK_TIMEOUT_MS` deadline including final consistency reads. `AI_CONTEXT_LIMIT` (503) rejects a prompt exceeding the reviewed model budget. A configured key and exact `OPENAI_CHAT_MODEL` are required for generation; empty/no-relevant retrieval still skips generation. No admitted whole spans under a lowered context budget returns `EVIDENCE_INSUFFICIENT` without generation. Search errors also apply. Additionally 409 `DOCUMENT_CHANGED` if cited document runs disappear/change before response, and 502 `AI_OUTPUT_INVALID` for malformed, truncated, uncited, or unknown-ID output. Do not convert provider timeouts to insufficient evidence. The frontend offers a user retry; do not silently regenerate invalid answers.
 
 ## Health
 
@@ -154,7 +154,7 @@ Liveness: 200 `{status: "ok"}` when HTTP process is responsive. No external call
 
 ### GET /api/health/ready — S01
 
-200 `{status: "ready", checks: {database: "ok", storage: "ok", embeddingProfile: "ok", aiConfiguration: "ok" | "disabled"}}`. S01/S02 may use disabled AI. From S03 full runtime requires configured AI. 503 uses the error envelope with `SERVICE_UNAVAILABLE` and safe detail identifying failed check names, not credentials/paths. Check database/extension, dimension/profile compatibility, storage writability, and locally validated config only. Never call paid models from health endpoints.
+200 `{status: "ready", checks: {database: "ok", storage: "ok", embeddingProfile: "ok", aiConfiguration: "ok" | "disabled"}}`. S01/S02 may use disabled AI. From S03 full runtime requires a key; S05 additionally requires the reviewed generation model for readiness (ingestion claims still depend only on the key). 503 uses the error envelope with `SERVICE_UNAVAILABLE` and safe detail identifying failed check names, not credentials/paths. Check database/extension, dimension/profile compatibility, storage writability, and locally validated config only. Never call paid models from health endpoints.
 
 ## Processing error vocabulary
 

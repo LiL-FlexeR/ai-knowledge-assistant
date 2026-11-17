@@ -2,7 +2,7 @@
 
 ## Project Context
 
-This repository implements S00–S04: workspace tooling, API liveness/readiness/configuration/error foundation, a minimal web shell, local Compose infrastructure, Prisma/pgvector persistence, private document management, and bounded source-aware ingestion with OpenAI embeddings and manual reprocessing. Complete generations publish atomically; missing AI configuration leaves uploads pending and readiness unavailable. S04 adds bounded exact semantic retrieval with stored source metadata. Question answering and product screens remain planned. The target is a local, single-user document RAG application: NestJS/TypeScript API, Next.js/React UI, Prisma, PostgreSQL/pgvector, OpenAI, and a pnpm monorepo. Do not claim planned behavior is implemented.
+This repository implements S00–S05: workspace tooling, API liveness/readiness/configuration/error foundation, a minimal web shell, local Compose infrastructure, Prisma/pgvector persistence, private document management, and bounded source-aware ingestion with OpenAI embeddings and manual reprocessing. Complete generations publish atomically; missing AI configuration leaves uploads pending and readiness unavailable. S04 adds bounded exact semantic retrieval with stored source metadata. S05 adds bounded structured question answering with server-created citations and cited-generation consistency checks. Product screens remain planned for S06; live semantic quality is unmeasured. The target is a local, single-user document RAG application: NestJS/TypeScript API, Next.js/React UI, Prisma, PostgreSQL/pgvector, OpenAI, and a pnpm monorepo. Do not claim planned behavior is implemented.
 
 ## Documentation Priority
 

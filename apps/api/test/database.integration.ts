@@ -42,6 +42,7 @@ describe('real PostgreSQL/pgvector infrastructure', () => {
   const config = parseEnvironment({
     ...process.env,
     OPENAI_API_KEY: 'fake-readiness-only',
+    OPENAI_CHAT_MODEL: 'gpt-5.4-mini-2026-03-17',
   });
   const ownedIds: string[] = [];
 

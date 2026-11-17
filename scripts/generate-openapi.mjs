@@ -14,6 +14,11 @@ const names = {
   Source: contracts.sourceSchema,
   SearchRequest: contracts.searchRequestSchema,
   SearchResponse: contracts.searchResponseSchema,
+  AskRequest: contracts.askRequestSchema,
+  AskResponse: contracts.askResponseSchema,
+  AnswerStatement: contracts.answerStatementSchema,
+  Citation: contracts.citationSchema,
+  AskUsage: contracts.askUsageSchema,
   DocumentListResponse: contracts.documentListResponseSchema,
   ErrorResponse: contracts.errorResponseSchema,
   HealthResponse: contracts.healthResponseSchema,
@@ -97,16 +102,149 @@ const id = {
   required: true,
   schema: { type: 'string', format: 'uuid' },
 };
+const askBase = {
+  statements: [],
+  citations: [],
+  retrieval: { requestedTopK: 5, matchedChunks: 0, contextChunks: 0 },
+  usage: {
+    embeddingInputTokens: 0,
+    generationInputTokens: null,
+    generationOutputTokens: null,
+  },
+};
+const askExamples = Object.fromEntries(
+  [
+    {
+      ...askBase,
+      status: 'answered',
+      reason: null,
+      limitation: null,
+      statements: [
+        { text: 'Maintenance is Sunday at 02:00 UTC.', sourceIds: ['S1'] },
+      ],
+      answer: 'Maintenance is Sunday at 02:00 UTC. [S1]',
+      citations: [
+        {
+          sourceId: 'S1',
+          chunkId: requestId,
+          source: {
+            documentId: exampleDocument.id,
+            filename: 'operations.md',
+            location: {
+              kind: 'markdown',
+              unitIndex: 0,
+              sectionOrdinal: 1,
+              headingPath: ['Maintenance'],
+              lineStart: 1,
+              lineEnd: 1,
+              charStart: 0,
+              charEnd: 35,
+            },
+            excerpt: 'Maintenance is Sunday at 02:00 UTC.',
+          },
+        },
+      ],
+      retrieval: { requestedTopK: 5, matchedChunks: 1, contextChunks: 1 },
+      usage: {
+        embeddingInputTokens: 8,
+        generationInputTokens: 320,
+        generationOutputTokens: 40,
+      },
+    },
+    ...[
+      'NO_READY_DOCUMENTS',
+      'NO_RELEVANT_CONTEXT',
+      'EVIDENCE_INSUFFICIENT',
+      'PROVIDER_REFUSAL',
+    ].map((reason) => ({
+      ...askBase,
+      status:
+        reason === 'PROVIDER_REFUSAL' ? 'refused' : 'insufficient_context',
+      reason,
+      answer:
+        reason === 'PROVIDER_REFUSAL'
+          ? 'The AI provider declined this request.'
+          : 'The available evidence cannot answer this question.',
+      limitation:
+        reason === 'PROVIDER_REFUSAL'
+          ? 'The AI provider declined this request.'
+          : 'The available evidence cannot answer this question.',
+      ...(reason === 'EVIDENCE_INSUFFICIENT' || reason === 'PROVIDER_REFUSAL'
+        ? {
+            retrieval: { requestedTopK: 5, matchedChunks: 1, contextChunks: 1 },
+            usage: {
+              embeddingInputTokens: 8,
+              generationInputTokens: 320,
+              generationOutputTokens: 40,
+            },
+          }
+        : {}),
+    })),
+  ].map((data) => [
+    data.reason ?? data.status,
+    { value: contracts.askResponseSchema.parse({ data, requestId }) },
+  ]),
+);
 const output = {
   openapi: '3.1.0',
   info: {
     title: 'AI Knowledge Assistant local API',
-    version: '0.4.0',
+    version: '0.5.0',
     description:
-      'Implemented through S04. Pending uploads become complete source-aware vector generations when AI is configured. Exact semantic search returns stored passages and source locations. Reprocess/search may incur embedding cost. Chat and original downloads remain unavailable. Local single API process only.',
+      'Implemented through S05. Source-aware ingestion, exact semantic search and structured question answering with server-created citations. Ingestion, reprocess, search and ask may incur OpenAI cost. Product UI and original downloads remain unavailable. Local single API process only.',
   },
   servers: [{ url: 'http://127.0.0.1:3001/api' }],
   paths: {
+    '/chat/ask': {
+      post: {
+        summary: 'Answer a question using admitted document evidence',
+        description:
+          'JSON only, no query fields. Same trimmed question, token, topK and document filter rules as search. Each socket client has a separate 10 asks/minute limit (ASK_REQUESTS_PER_MINUTE, configurable downward). Full shared AI capacity returns immediate 429. One embedding and at most one generation before eligible transport retries. Complete spans only, deduplicated with >50% overlap suppression and a 4000 o200k_base evidence-token cap; full prompt/schema/metadata plus output reservation checked against model limits. Server validates 1–8 statements (1–500 characters each), admitted source IDs, and exactly the distinct used citations in context order. Server formats answer markers and locations. Empty/irrelevant evidence skips generation. Refusal is distinct from insufficiency. Invalid/truncated/uncited output is 502 without repair generation. Whole ASK_TIMEOUT_MS (65000 default) includes embedding, generation, retry/backoff and the final cited-run/profile check; disconnect cancels work. No tools, streaming or history. Citation identities do not prove factual support. Usage examples are illustrative, not measured.',
+        requestBody: {
+          required: true,
+          content: json('AskRequest', {
+            question: 'When is the Orion maintenance window?',
+            topK: 5,
+          }),
+        },
+        responses: {
+          200: {
+            ...success(
+              'AskResponse',
+              'Answered, insufficient_context or refused; all response keys are present.',
+            ),
+            content: {
+              'application/json': {
+                schema: ref('AskResponse'),
+                examples: askExamples,
+              },
+            },
+          },
+          ...responses(400, 403, 404, 413),
+          409: error(
+            'DOCUMENT_CHANGED',
+            'Cited documents changed or disappeared. Retry the question.',
+          ),
+          429: {
+            ...errors[429],
+            description:
+              'RATE_LIMITED or AI_CAPACITY_EXCEEDED, with Retry-After.',
+          },
+          502: error(
+            'AI_OUTPUT_INVALID',
+            'AI_OUTPUT_INVALID for malformed, incomplete or invalid references; AI_UPSTREAM_ERROR for provider failure.',
+          ),
+          503: error(
+            'AI_NOT_CONFIGURED',
+            'AI_NOT_CONFIGURED, EMBEDDING_PROFILE_MISMATCH, AI_CONTEXT_LIMIT or SERVICE_UNAVAILABLE.',
+          ),
+          504: error(
+            'AI_TIMEOUT',
+            'Question answering exceeded its deadline or a provider attempt timed out.',
+          ),
+        },
+      },
+    },
     '/health': {
       get: {
         responses: { 200: success('HealthResponse', 'Process is responsive.') },

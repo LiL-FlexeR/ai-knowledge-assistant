@@ -21,6 +21,7 @@ describe('readiness contracts and controlled dependency faults', () => {
   const config = parseEnvironment({
     NODE_ENV: 'test',
     OPENAI_API_KEY: 'fake-readiness-only',
+    OPENAI_CHAT_MODEL: 'gpt-5.4-mini-2026-03-17',
   });
 
   beforeAll(async () => {
@@ -74,6 +75,23 @@ describe('readiness contracts and controlled dependency faults', () => {
       });
     } finally {
       config.OPENAI_API_KEY = key!;
+    }
+  });
+
+  it('requires generation model configuration for full S05 readiness', async () => {
+    const model = config.OPENAI_CHAT_MODEL;
+    delete config.OPENAI_CHAT_MODEL;
+    try {
+      const response = await request(app.getHttpServer())
+        .get('/api/health/ready')
+        .expect(503);
+      expect(response.body.error.details).toContainEqual({
+        path: 'aiConfiguration',
+        message: 'Check failed.',
+      });
+      await request(app.getHttpServer()).get('/api/health').expect(200);
+    } finally {
+      config.OPENAI_CHAT_MODEL = model!;
     }
   });
 

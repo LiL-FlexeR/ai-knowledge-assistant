@@ -146,6 +146,7 @@ describe('S04 search contracts with fake infrastructure', () => {
     config.RETRIEVAL_MIN_SIMILARITY = 0.5;
     const row = {
       chunkId: randomUUID(),
+      processingRunId: randomUUID(),
       documentId: randomUUID(),
       chunkIndex: 0,
       filename: 'notes.txt',
@@ -163,7 +164,12 @@ describe('S04 search contracts with fake infrastructure', () => {
     };
     reader.nearest.mockResolvedValue([
       row,
-      { ...row, chunkId: randomUUID(), distance: 0.51 },
+      {
+        ...row,
+        chunkId: randomUUID(),
+        processingRunId: randomUUID(),
+        distance: 0.51,
+      },
     ]);
     const documentIds = [randomUUID()];
     const response = await search(app, {
@@ -314,6 +320,7 @@ describe('source DTO mapping', () => {
     (location) => {
       const hit = mapSource({
         chunkId: randomUUID(),
+        processingRunId: randomUUID(),
         documentId: randomUUID(),
         chunkIndex: 1,
         filename: '<plain>.txt',
@@ -340,6 +347,7 @@ describe('source DTO mapping', () => {
     };
     const row = {
       chunkId: randomUUID(),
+      processingRunId: randomUUID(),
       documentId: randomUUID(),
       chunkIndex: 0,
       filename: 'x.pdf',

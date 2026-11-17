@@ -40,7 +40,8 @@ export class ReadinessService {
       failed.push('embeddingProfile');
     }
     if (storage.status === 'rejected') failed.push('storage');
-    if (!this.config.OPENAI_API_KEY) failed.push('aiConfiguration');
+    if (!this.config.OPENAI_API_KEY || !this.config.OPENAI_CHAT_MODEL)
+      failed.push('aiConfiguration');
     if (failed.length) throw new ReadinessUnavailable(failed);
     return {
       status: 'ready',

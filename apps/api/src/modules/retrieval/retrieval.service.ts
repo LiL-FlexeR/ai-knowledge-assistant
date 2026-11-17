@@ -10,6 +10,7 @@ import { serializeVector } from '../../database/vector-sql';
 import { ProcessingFailure } from '../../processing-error';
 import { EmbeddingClient } from '../ai/embedding-client';
 import { VectorReader } from './vector-reader';
+import type { VectorRow } from './vector-reader';
 import { mapSource } from './source-mapper';
 
 const tokenizer = getEncoding('cl100k_base');
@@ -49,6 +50,24 @@ export class RetrievalService {
     private readonly embeddings: EmbeddingClient,
   ) {}
   async search(input: unknown, signal?: AbortSignal): Promise<SearchResponse> {
+    const result = await this.retrieve(input, signal);
+    return result.rows.length
+      ? { status: 'results', reason: null, results: result.rows.map(mapSource) }
+      : { status: 'insufficient_context', reason: result.reason!, results: [] };
+  }
+  assertUnchanged(sources: readonly VectorRow[]): Promise<void> {
+    return this.reader.assertUnchanged(sources);
+  }
+  async retrieve(
+    input: unknown,
+    signal?: AbortSignal,
+    outerDeadline?: number,
+  ): Promise<{
+    rows: VectorRow[];
+    reason: 'NO_READY_DOCUMENTS' | 'NO_RELEVANT_CONTEXT' | null;
+    requestedTopK: number;
+    embeddingInputTokens: number | null;
+  }> {
     const parsed = searchRequestSchema.safeParse(input);
     if (!parsed.success) throw invalidRequest();
     const { query, documentIds } = parsed.data;
@@ -61,10 +80,13 @@ export class RetrievalService {
     const tokenCount = tokenizer.encode(query, [], []).length;
     if (tokenCount > this.config.QUESTION_MAX_TOKENS) throw invalidRequest();
     const controller = new AbortController();
-    const deadline = Date.now() + this.config.ASK_TIMEOUT_MS;
+    const deadline = Math.min(
+      outerDeadline ?? Infinity,
+      Date.now() + this.config.ASK_TIMEOUT_MS,
+    );
     const timer = setTimeout(
       () => controller.abort(timeout()),
-      this.config.ASK_TIMEOUT_MS,
+      Math.max(1, deadline - Date.now()),
     );
     const combined = AbortSignal.any([
       controller.signal,
@@ -79,9 +101,10 @@ export class RetrievalService {
         ))
       )
         return {
-          status: 'insufficient_context',
           reason: 'NO_READY_DOCUMENTS',
-          results: [],
+          rows: [],
+          requestedTopK: topK,
+          embeddingInputTokens: 0,
         };
       if (!this.config.OPENAI_API_KEY)
         throw new ApiError(503, 'AI_NOT_CONFIGURED', 'AI is not configured.');
@@ -111,18 +134,16 @@ export class RetrievalService {
         combined,
       );
       try {
-        const results = rows
-          .filter(
-            (row) => 1 - row.distance >= this.config.RETRIEVAL_MIN_SIMILARITY,
-          )
-          .map(mapSource);
-        return results.length
-          ? { status: 'results', reason: null, results }
-          : {
-              status: 'insufficient_context',
-              reason: 'NO_RELEVANT_CONTEXT',
-              results: [],
-            };
+        const results = rows.filter(
+          (row) => 1 - row.distance >= this.config.RETRIEVAL_MIN_SIMILARITY,
+        );
+        results.forEach(mapSource);
+        return {
+          rows: results,
+          reason: results.length ? null : 'NO_RELEVANT_CONTEXT',
+          requestedTopK: topK,
+          embeddingInputTokens: embedded.inputTokens,
+        };
       } catch {
         throw new ApiError(
           503,

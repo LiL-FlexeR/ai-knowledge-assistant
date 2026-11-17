@@ -54,7 +54,7 @@ describe('HTTP contracts', () => {
   });
 
   it.each(['/api/search', '/api/chat/ask', '/api/private-secret-canary'])(
-    'keeps unimplemented/unknown routes behind a safe 404 envelope: %s',
+    'keeps unsupported methods/unknown routes behind a safe 404 envelope: %s',
     async (path) => {
       const response = await request(app.getHttpServer()).get(path).expect(404);
       const body = errorResponseSchema.parse(response.body);

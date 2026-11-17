@@ -1,6 +1,6 @@
 # Product documentation
 
-S00–S04 implement workspace tooling, API liveness/readiness/configuration, a minimal web shell, local Prisma/PostgreSQL/pgvector infrastructure, private document management and source-aware ingestion with embeddings and reprocessing. S04 adds exact cosine search with profile/run/document filters and stored source locations. Question answering and product screens remain planned. Missing AI configuration leaves uploads pending and readiness unavailable. These documents describe the intended local MVP and the evidence required to call it complete.
+S00–S05 implement workspace tooling, API liveness/readiness/configuration, a minimal web shell, local Prisma/PostgreSQL/pgvector infrastructure, private document management and source-aware ingestion with embeddings and reprocessing. S04 adds exact cosine search with profile/run/document filters and stored source locations. S05 adds structured question answering with admitted evidence, server-created citations and explicit insufficiency/refusal/errors. Product screens remain planned for S06; live semantic quality is unmeasured. Missing AI configuration leaves uploads pending and readiness unavailable. These documents describe the intended local MVP and the evidence required to call it complete.
 
 - [Product vision](product-vision.md): problem, users, value, core journey.
 - [Requirements](requirements.md): traceable functional/non-functional requirements.

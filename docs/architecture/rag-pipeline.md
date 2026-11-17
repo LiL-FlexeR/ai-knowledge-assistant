@@ -44,7 +44,7 @@ Deterministic fakes establish source/lifecycle integrity, not semantic retrieval
 
 Cosine compares direction in embedding space and provides a clear baseline. Exact search avoids approximate-index tuning for the small corpus. Semantic similarity does not establish entailment, truth, or answerability. No reranking, hybrid search, query rewriting, or multi-agent processing in MVP.
 
-S04 implements this baseline in `modules/retrieval`: exact `<=>` with bound vector/UUID arrays/topK/profile fields, current model/dimensions/pipeline/run checks, strict scalar-row validation and stored source DTOs. Excerpts preserve at most 1000 UTF-16 units without splitting surrogate pairs; locations retain the full stored chunk span. Query deadlines use `ASK_TIMEOUT_MS` (65 seconds by default) across preflight/embedding/SQL, with disconnect cancellation and the existing provider retry budget. Database statements remain separately bounded by the connection's three-second timeout. Known-vector/fake-provider tests prove mechanics and source integrity, not semantic quality. Context assembly and generation below remain S05 work.
+S04 implements this baseline in `modules/retrieval`: exact `<=>` with bound vector/UUID arrays/topK/profile fields, current model/dimensions/pipeline/run checks, strict scalar-row validation and stored source DTOs. Excerpts preserve at most 1000 UTF-16 units without splitting surrogate pairs; locations retain the full stored chunk span. Query deadlines use `ASK_TIMEOUT_MS` (65 seconds by default) across preflight/embedding/SQL, with disconnect cancellation and the existing provider retry budget. Database statements remain separately bounded by the connection's three-second timeout. Known-vector/fake-provider tests prove mechanics and source integrity, not semantic quality. S05 consumes these complete rows internally, including processing run IDs, without changing the public search response.
 
 ## Context assembly
 
@@ -54,7 +54,7 @@ Assign request-local IDs `S1`, `S2`, ... only to admitted evidence. Build an imm
 
 ## Grounded generation
 
-Use one OpenAI Responses request with structured output and no tools. S05 selects and records a verified stable, cost-appropriate model with the required schema support and a matching tokenizer. Pin the prompt version alongside evaluation runs. The provider DTO is internal:
+Use one OpenAI Responses request with structured output and no tools. S05 uses the reviewed `gpt-5.4-mini-2026-03-17` snapshot with `o200k_base` and reasoning `none`; [ADR-002](decisions/ADR-002-rag-design.md#s05-generation-model-and-implementation) records public capability/pricing checks and the unverified account-access/live-smoke status. Pin the prompt version alongside evaluation runs. The provider DTO is internal:
 
 ```text
 {
@@ -64,7 +64,7 @@ Use one OpenAI Responses request with structured output and no tools. S05 select
 }
 ```
 
-For `answered`, require 1–8 concise statements; every statement has at least one admitted source ID and only allowed IDs. For `insufficient_context`, statements are empty and limitation explains the missing evidence. Reject extra properties, empty claims, unknown IDs, or oversized text. API `answer` is assembled deterministically from statement text plus validated citation markers; the UI can render the parallel statement/citation data without parsing arbitrary model Markdown.
+Prompt/schema version is `grounded-answer-v1` / `grounded_answer_v1`. For `answered`, require 1–8 concise statements of 1–500 trimmed UTF-16 characters; every statement has at least one admitted source ID and only allowed IDs. For `insufficient_context`, statements are empty and limitation explains the missing evidence. Limitation, when present, contains 1–500 trimmed UTF-16 characters. Reject extra properties, empty claims, duplicate/unknown IDs, oversized text, ill-formed Unicode and model-authored citation markers. Validate usage counts as nonnegative integers or null; skipped generation leaves generation usage null. The Responses adapter checks completion/refusal separately, response model, output item types and the output-token cap, and never exposes partial output or provider refusal text. API `answer` is assembled deterministically from statement text plus validated citation markers; the UI can render the parallel statement/citation data without parsing arbitrary model Markdown.
 
 System instructions must say:
 

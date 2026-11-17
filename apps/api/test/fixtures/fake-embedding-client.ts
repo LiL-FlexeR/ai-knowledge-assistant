@@ -4,7 +4,11 @@ import type {
   EmbeddingResult,
 } from '../../src/modules/ai/embedding-client';
 export class FakeEmbeddingClient extends EmbeddingClient {
-  readonly calls: { inputs: EmbeddingInput[]; signal: AbortSignal }[] = [];
+  readonly calls: {
+    inputs: EmbeddingInput[];
+    signal: AbortSignal;
+    deadline: number | undefined;
+  }[] = [];
   handler:
     | ((
         inputs: EmbeddingInput[],
@@ -14,8 +18,9 @@ export class FakeEmbeddingClient extends EmbeddingClient {
   async embed(
     inputs: EmbeddingInput[],
     signal: AbortSignal,
+    deadline?: number,
   ): Promise<EmbeddingResult> {
-    this.calls.push({ inputs, signal });
+    this.calls.push({ inputs, signal, deadline });
     if (this.handler) return this.handler(inputs, signal);
     return {
       vectors: inputs.map(() => [1, ...Array<number>(1535).fill(0)]),
