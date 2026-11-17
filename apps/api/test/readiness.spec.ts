@@ -18,12 +18,16 @@ describe('readiness contracts and controlled dependency faults', () => {
   let root: string;
   const database = { inspect: jest.fn() };
   const storage = { check: jest.fn() };
+  const config = parseEnvironment({
+    NODE_ENV: 'test',
+    OPENAI_API_KEY: 'fake-readiness-only',
+  });
 
   beforeAll(async () => {
     root = await mkdtemp(join(tmpdir(), 'aka-readiness-'));
     const module = await Test.createTestingModule({ imports: [HealthModule] })
       .overrideProvider(API_CONFIG)
-      .useValue(parseEnvironment({ NODE_ENV: 'test', STORAGE_ROOT: root }))
+      .useValue(config)
       .overrideProvider(DatabaseService)
       .useValue(database)
       .overrideProvider(StorageProbe)
@@ -48,13 +52,29 @@ describe('readiness contracts and controlled dependency faults', () => {
     await rm(root, { recursive: true });
   });
 
-  it('returns the shared ready contract with AI disabled and no provider call', async () => {
+  it('returns the shared ready contract with configured AI and no provider call', async () => {
     const response = await request(app.getHttpServer())
       .get('/api/health/ready')
       .expect(200);
     const body = readinessResponseSchema.parse(response.body);
-    expect(body.data.checks.aiConfiguration).toBe('disabled');
+    expect(body.data.checks.aiConfiguration).toBe('ok');
     expect(body.requestId).toBe(response.headers['x-request-id']);
+  });
+
+  it('reports missing AI configuration safely without a provider call', async () => {
+    const key = config.OPENAI_API_KEY;
+    delete config.OPENAI_API_KEY;
+    try {
+      const response = await request(app.getHttpServer())
+        .get('/api/health/ready')
+        .expect(503);
+      expect(response.body.error.details).toContainEqual({
+        path: 'aiConfiguration',
+        message: 'Check failed.',
+      });
+    } finally {
+      config.OPENAI_API_KEY = key!;
+    }
   });
 
   it.each(['database', 'storage', 'embeddingProfile'] as const)(

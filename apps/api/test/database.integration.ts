@@ -7,6 +7,7 @@ import { Test } from '@nestjs/testing';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import request from 'supertest';
 import { errorResponseSchema, readinessResponseSchema } from '@aka/shared';
+import { IngestionRunner } from '../src/modules/ingestion/ingestion-runner';
 import { AppModule } from '../src/app.module';
 import { API_CONFIG } from '../src/config/config.module';
 import { parseEnvironment } from '../src/config/environment';
@@ -38,7 +39,10 @@ describe('real PostgreSQL/pgvector infrastructure', () => {
   let admin: PrismaClient;
   let runtime: PrismaClient;
   let app: NestExpressApplication;
-  const config = parseEnvironment(process.env);
+  const config = parseEnvironment({
+    ...process.env,
+    OPENAI_API_KEY: 'fake-readiness-only',
+  });
   const ownedIds: string[] = [];
 
   beforeAll(async () => {
@@ -73,6 +77,8 @@ describe('real PostgreSQL/pgvector infrastructure', () => {
     admin = createDatabaseClient(url.toString());
     runtime = createDatabaseClient(config.DATABASE_URL);
     const module = await Test.createTestingModule({ imports: [AppModule] })
+      .overrideProvider(IngestionRunner)
+      .useValue({})
       .overrideProvider(API_CONFIG)
       .useValue(config)
       .compile();
@@ -283,7 +289,7 @@ describe('real PostgreSQL/pgvector infrastructure', () => {
       .expect(200);
     expect(
       readinessResponseSchema.parse(response.body).data.checks.aiConfiguration,
-    ).toBe('disabled');
+    ).toBe('ok');
     expect(await readdir(config.STORAGE_ROOT)).toEqual([]);
     const parent = await document({
       status: 'ready',
@@ -347,6 +353,8 @@ describe('real PostgreSQL/pgvector infrastructure', () => {
     const file = join(config.STORAGE_ROOT, 'storage-fault');
     await writeFile(file, 'file');
     const module = await Test.createTestingModule({ imports: [AppModule] })
+      .overrideProvider(IngestionRunner)
+      .useValue({})
       .overrideProvider(API_CONFIG)
       .useValue({ ...config, STORAGE_ROOT: file })
       .compile();

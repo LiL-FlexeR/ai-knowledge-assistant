@@ -69,4 +69,22 @@ export class DocumentsController {
       throw invalidRequest();
     return this.documents.delete(documentId(id));
   }
+  @Post(':id/reprocess')
+  @HttpCode(202)
+  async reprocess(
+    @Param('id') id: string,
+    @Req() request: Request,
+    @Res({ passthrough: true }) response: Response,
+  ) {
+    if (
+      Object.keys(request.query).length ||
+      request.body !== undefined ||
+      Number(request.headers['content-length'] ?? 0) > 0 ||
+      request.headers['transfer-encoding']
+    )
+      throw invalidRequest();
+    const document = await this.documents.reprocess(documentId(id));
+    response.setHeader('Location', `/api/documents/${document.id}`);
+    return document;
+  }
 }

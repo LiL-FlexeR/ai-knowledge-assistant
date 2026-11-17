@@ -1,6 +1,6 @@
 # Requirements
 
-S02 verifies FR-01 and the document-management API portion of FR-02, including private originals, quotas, pagination and compensated deletion. Uploads stay pending; processing behavior remains S03 and product UI remains S06. S00–S02 also verify health/contracts, workspace/configuration, infrastructure reproducibility and database/vector integrity primitives in FR-09 and NFR-01/02/03/04/05/06; those broader requirements remain partial. Architectural defaults and public DTOs are authoritative in [system overview](../architecture/system-overview.md) and [API contracts](../architecture/api-contracts.md). See [S02 evidence](../features/stages/S02-document-management.md#verification-evidence).
+S02 verifies FR-01 and the document-management API portion of FR-02. S03 verifies extraction, canonical source spans, chunking, compatible embeddings, state transitions, restart recovery and manual reprocessing in FR-03–05, with deterministic fake-provider and real PostgreSQL/pgvector evidence. Product UI remains S06; retrieval and answering remain S04–S05. FR-09 and NFR-01/02/03/04/05/06 also have foundation/ingestion evidence but remain partial across the MVP. Architectural defaults and public DTOs are authoritative in [system overview](../architecture/system-overview.md) and [API contracts](../architecture/api-contracts.md). See [S02 evidence](../features/stages/S02-document-management.md#verification-evidence) and [S03 evidence](../features/stages/S03-document-ingestion.md#verification-evidence).
 
 ## Functional requirements
 

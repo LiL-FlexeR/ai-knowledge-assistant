@@ -162,7 +162,7 @@ describe('document API with real PostgreSQL and private temporary storage', () =
     );
     await request(app.getHttpServer())
       .post(`/api/documents/${ids[0]}/reprocess`)
-      .expect(404);
+      .expect(409);
     expect(
       (await db.document.findMany()).every((row) => row.status === 'pending'),
     ).toBe(true);

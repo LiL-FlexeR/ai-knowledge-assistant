@@ -1,6 +1,6 @@
 # Implementation roadmap
 
-**Status: S00–S02 complete; S03–S07 remain unimplemented.** Checks and limitations are recorded in [S00 evidence](stages/S00-project-setup.md#verification-evidence), [S01 evidence](stages/S01-database-and-infrastructure.md#verification-evidence), and [S02 evidence](stages/S02-document-management.md#verification-evidence). This is the primary execution plan for future sessions. Execute exactly the requested stage, verify its dependencies in the repository, and stop before the next stage. If prerequisites are missing, report the dependency instead of creating undocumented substitutes.
+**Status: S00–S03 complete; S04–S07 remain unimplemented.** Checks and limitations are recorded in [S00 evidence](stages/S00-project-setup.md#verification-evidence), [S01 evidence](stages/S01-database-and-infrastructure.md#verification-evidence), [S02 evidence](stages/S02-document-management.md#verification-evidence), and [S03 evidence](stages/S03-document-ingestion.md#verification-evidence). This is the primary execution plan for future sessions. Execute exactly the requested stage, verify its dependencies in the repository, and stop before the next stage. If prerequisites are missing, report the dependency instead of creating undocumented substitutes.
 
 Read [AGENTS.md](../../AGENTS.md), [product requirements](../product/requirements.md), and relevant [architecture](../architecture/README.md). Detailed stage documents own execution detail; public behavior remains governed by [API contracts](../architecture/api-contracts.md). Verify current stable tooling during implementation; commands below are planned until their owning stage introduces them.
 
@@ -106,25 +106,25 @@ Completion evidence belongs in the final verification section of each stage docu
 
 **Implementation tasks**
 
-- [ ] Implement source-aware extractors, normalization/line mapping, deterministic token chunks, and extraction limits.
-- [ ] Add the OpenAI embedding boundary/fake, bounded batches/timeouts/retries, vector validation, and atomic publication.
-- [ ] Implement pending claims, run fencing, restart recovery, cancellation, and explicit reprocess API.
+- [x] Implement source-aware extractors, normalization/line mapping, deterministic token chunks, and extraction limits.
+- [x] Add the OpenAI embedding boundary/fake, bounded batches/timeouts/retries, vector validation, and atomic publication.
+- [x] Implement pending claims, run fencing, restart recovery, cancellation, and explicit reprocess API.
 
 **Expected deliverables**
 
-- [ ] Ingestion module, AI embedding adapter, source fixtures, shared reprocess/status schemas, and integration coverage.
+- [x] Ingestion module, AI embedding adapter, source fixtures, shared reprocess/status schemas, and integration coverage.
 
 **Acceptance criteria**
 
-- [ ] PDF/TXT/Markdown become ready with correct locations; failures/interruption/deletion leave no partial or resurrected index; retry produces one new generation.
+- [x] PDF/TXT/Markdown become ready with correct locations; failures/interruption/deletion leave no partial or resurrected index; retry produces one new generation.
 
 **Required tests**
 
-- [ ] Extract/normalize/chunk/embedding/retry unit tests; actual pgvector publication/rollback/reprocess/restart/delete-race integration with mocked AI.
+- [x] Extract/normalize/chunk/embedding/retry unit tests; actual pgvector publication/rollback/reprocess/restart/delete-race integration with mocked AI.
 
 **Definition of Done**
 
-- [ ] Bounds and lifecycle invariants are verified; selected parser/tokenizer/provider compatibility is recorded; no retrieval/generation feature is silently added.
+- [x] Bounds and lifecycle invariants are verified; selected parser/tokenizer/provider compatibility is recorded; no retrieval/generation feature is silently added.
 
 ## S04 — Semantic Retrieval
 

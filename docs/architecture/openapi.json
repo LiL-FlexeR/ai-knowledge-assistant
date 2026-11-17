@@ -2,8 +2,8 @@
   "openapi": "3.1.0",
   "info": {
     "title": "AI Knowledge Assistant local API",
-    "version": "0.2.0",
-    "description": "Implemented through S02. Uploads remain pending; no ingestion, reprocess, search, chat, or original download endpoints. Local single API process only."
+    "version": "0.3.0",
+    "description": "Implemented through S03. Pending uploads are processed into complete source-aware vector generations when AI is configured. Reprocess may incur embedding cost. Search/chat and original download endpoints are unavailable. Local single API process only."
   },
   "servers": [
     {
@@ -39,7 +39,7 @@
       "get": {
         "responses": {
           "200": {
-            "description": "Local dependencies are ready; AI may be disabled.",
+            "description": "Local dependencies and AI configuration are ready; no paid health calls.",
             "content": {
               "application/json": {
                 "schema": {
@@ -65,7 +65,7 @@
     "/documents": {
       "post": {
         "summary": "Store one validated original and pending metadata",
-        "description": "Exactly one file and no fields. PDF header or strict nonbinary UTF-8 text must agree with .pdf/.txt/.md/.markdown suffix and MIME. Empty/generic MIME is allowed. Defaults: 10 MiB/file, two concurrent streams, 60-second upload deadline, 10 requests/minute. Admission serializes 100-document/200-MiB/five-pending quotas. All may be configured downward. No AI calls.",
+        "description": "Exactly one file and no fields. PDF header or strict nonbinary UTF-8 text must agree with .pdf/.txt/.md/.markdown suffix and MIME. Empty/generic MIME is allowed. Defaults: 10 MiB/file, two concurrent streams, 60-second upload deadline, 10 upload/reprocess requests/minute combined. Admission serializes 100-document/200-MiB/five-pending quotas. All may be configured downward. Upload returns pending; background processing sends canonical chunk text to OpenAI when configured.",
         "requestBody": {
           "required": true,
           "content": {
@@ -374,6 +374,93 @@
           }
         }
       }
+    },
+    "/documents/{id}/reprocess": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      ],
+      "post": {
+        "summary": "Clear a ready/failed generation and schedule processing again",
+        "description": "No body or query. Requires a readable original and pending capacity. Atomically clears old evidence and assigns a new run. Shares the upload request limit. Re-embedding may incur cost.",
+        "responses": {
+          "202": {
+            "description": "Pending metadata with old evidence invalidated.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReprocessResponse"
+                },
+                "example": {
+                  "data": {
+                    "id": "11111111-1111-4111-8111-111111111111",
+                    "filename": "notes.txt",
+                    "mimeType": "text/plain",
+                    "size": 4,
+                    "status": "pending",
+                    "chunkCount": 0,
+                    "processingError": null,
+                    "createdAt": "2026-11-17T12:00:00.000Z",
+                    "updatedAt": "2026-11-17T12:00:00.000Z",
+                    "processedAt": null
+                  },
+                  "requestId": "22222222-2222-4222-8222-222222222222"
+                }
+              }
+            },
+            "headers": {
+              "Location": {
+                "schema": {
+                  "type": "string"
+                },
+                "example": "/api/documents/11111111-1111-4111-8111-111111111111"
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error404"
+          },
+          "409": {
+            "description": "DOCUMENT_BUSY for pending/processing/deleting; CAPACITY_EXCEEDED for pending capacity; ORIGINAL_FILE_MISSING if the original cannot be found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "example": {
+                  "error": {
+                    "code": "DOCUMENT_BUSY",
+                    "message": "DOCUMENT_BUSY for pending/processing/deleting; CAPACITY_EXCEEDED for pending capacity; ORIGINAL_FILE_MISSING if the original cannot be found."
+                  },
+                  "requestId": "22222222-2222-4222-8222-222222222222"
+                }
+              }
+            }
+          },
+          "429": {
+            "$ref": "#/components/responses/Error429"
+          },
+          "500": {
+            "$ref": "#/components/responses/Error500"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error503"
+          }
+        }
+      }
     }
   },
   "components": {
@@ -610,6 +697,276 @@
           "requestId"
         ],
         "additionalProperties": false
+      },
+      "ReprocessResponse": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+              },
+              "filename": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 255
+              },
+              "mimeType": {
+                "type": "string",
+                "enum": [
+                  "application/pdf",
+                  "text/plain",
+                  "text/markdown"
+                ]
+              },
+              "size": {
+                "type": "integer",
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "pending",
+                  "processing",
+                  "ready",
+                  "failed",
+                  "deleting"
+                ]
+              },
+              "chunkCount": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "processingError": {
+                "anyOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "code": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 100
+                      },
+                      "message": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 500
+                      },
+                      "retryable": {
+                        "type": "boolean"
+                      }
+                    },
+                    "required": [
+                      "code",
+                      "message",
+                      "retryable"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "createdAt": {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+              },
+              "updatedAt": {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+              },
+              "processedAt": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "format": "date-time",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "id",
+              "filename",
+              "mimeType",
+              "size",
+              "status",
+              "chunkCount",
+              "processingError",
+              "createdAt",
+              "updatedAt",
+              "processedAt"
+            ],
+            "additionalProperties": false
+          },
+          "requestId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          }
+        },
+        "required": [
+          "data",
+          "requestId"
+        ],
+        "additionalProperties": false
+      },
+      "SourceLocation": {
+        "oneOf": [
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "const": "pdf"
+              },
+              "unitIndex": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "charStart": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "charEnd": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "page": {
+                "type": "integer",
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991
+              }
+            },
+            "required": [
+              "kind",
+              "unitIndex",
+              "charStart",
+              "charEnd",
+              "page"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "const": "text"
+              },
+              "unitIndex": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "charStart": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "charEnd": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "sectionOrdinal": {
+                "type": "integer",
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991
+              },
+              "lineStart": {
+                "type": "integer",
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991
+              },
+              "lineEnd": {
+                "type": "integer",
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991
+              }
+            },
+            "required": [
+              "kind",
+              "unitIndex",
+              "charStart",
+              "charEnd",
+              "sectionOrdinal",
+              "lineStart",
+              "lineEnd"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "const": "markdown"
+              },
+              "unitIndex": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "charStart": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "charEnd": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "sectionOrdinal": {
+                "type": "integer",
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991
+              },
+              "lineStart": {
+                "type": "integer",
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991
+              },
+              "lineEnd": {
+                "type": "integer",
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991
+              },
+              "headingPath": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            },
+            "required": [
+              "kind",
+              "unitIndex",
+              "charStart",
+              "charEnd",
+              "sectionOrdinal",
+              "lineStart",
+              "lineEnd",
+              "headingPath"
+            ],
+            "additionalProperties": false
+          }
+        ]
       },
       "DocumentListResponse": {
         "type": "object",

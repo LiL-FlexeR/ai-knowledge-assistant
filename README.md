@@ -2,7 +2,7 @@
 
 A planned document question-answering application using Retrieval-Augmented Generation (RAG). Upload PDF, TXT, or Markdown files, search their content, and ask questions with references to the supporting passages.
 
-**Status: S00–S02 implemented and verified.** The workspace provides API liveness/readiness, a minimal Next.js shell, local Compose services, reviewed Prisma migrations, PostgreSQL/pgvector primitives, and private document upload/list/detail/delete with quotas and retryable cleanup. Uploads stay pending: ingestion, retrieval, AI, and product screens remain planned in S03–S07. See [S02 verification evidence](docs/features/stages/S02-document-management.md#verification-evidence).
+**Status: S00–S03 implemented and verified.** The workspace provides API liveness/readiness, a minimal Next.js shell, local Compose services, reviewed Prisma migrations, PostgreSQL/pgvector primitives, and private document upload/list/detail/delete with quotas and retryable cleanup. S03 adds bounded source-aware extraction/chunking, OpenAI embeddings, atomic vector publication, restart recovery and manual reprocessing. Retrieval, question answering and product screens remain planned in S04–S07. See [S03 verification evidence](docs/features/stages/S03-document-ingestion.md#verification-evidence).
 
 ## Problem and planned features
 
@@ -51,7 +51,7 @@ Documentation lives in `docs/` and root `AGENTS.md`; installed project-local ski
 
 ```text
 apps/
-  api/                 # NestJS health/config/database/documents and Prisma schema
+  api/                 # NestJS health/config/database/documents/ingestion/ai and Prisma schema
   web/                 # Next.js App Router setup shell; product screens planned S06
 packages/
   shared/              # Public DTO schemas/types only
@@ -72,7 +72,7 @@ Follow the [skill selection and precedence rules](AGENTS.md#agent-skills): read 
 
 ## Local setup
 
-Install Node.js **24.22.3**, pnpm **12.21.0**, and Docker with Compose. Node/pnpm are also pinned in the repository. S01–S02 need no OpenAI key. PostgreSQL **18.7** with pgvector **0.8.7** and Node images are pinned by immutable digest; Prisma CLI/client/adapter are **7.10.1**, with `pg` **8.23.1**. [ADR-003](docs/architecture/decisions/ADR-003-data-storage.md#s01-implementation-and-compatibility) records the stable-version selection and compatibility evidence.
+Install Node.js **24.22.3**, pnpm **12.21.0**, and Docker with Compose. Node/pnpm are also pinned in the repository. Database setup and deterministic checks need no OpenAI key. S03 ingestion and full readiness require a server-only `OPENAI_API_KEY`. Without it liveness and document management remain available, uploads wait pending, and readiness reports 503. PostgreSQL **18.7** with pgvector **0.8.7** and Node images are pinned by immutable digest; Prisma CLI/client/adapter are **7.10.1**, with `pg` **8.23.1**. [ADR-003](docs/architecture/decisions/ADR-003-data-storage.md#s01-implementation-and-compatibility) records the stable-version selection and compatibility evidence.
 
 For host development:
 
@@ -89,11 +89,11 @@ curl -i http://localhost:3001/api/health/ready
 
 In private root `.env`, set separate `POSTGRES_PASSWORD` and `RUNTIME_DB_PASSWORD` values (for example, generate each with `openssl rand -hex 24`). Set `DATABASE_URL=postgresql://aka_runtime:<runtime-password>@127.0.0.1:5432/aka` and `MIGRATION_DATABASE_URL=postgresql://aka_migrator:<migration-password>@127.0.0.1:5432/aka`, substituting the matching passwords. Use URL-safe hex or percent-encode password characters. `infra:up` starts only the database. Its empty-volume bootstrap creates the runtime role; the reviewed migration grants data access only to the two entity tables. The privileged migrator creates extensions/schema and owns the migration ledger; its URL is never supplied to the API container.
 
-Open `http://localhost:3000`. Liveness `/api/health` returns `{"data":{"status":"ok"},"requestId":"<UUID>"}`. Readiness returns database/storage/profile checks and `aiConfiguration: "disabled"`; faults return a safe 503 envelope identifying check names. Without a database URL, liveness still runs and readiness returns 503. No health endpoint calls AI. Default host storage is `<repo>/.local/documents`, created privately on the first readiness probe and never served statically.
+Open `http://localhost:3000`. Liveness `/api/health` returns `{"data":{"status":"ok"},"requestId":"<UUID>"}`. Readiness returns database/storage/profile/AI checks with `aiConfiguration: "ok"`; missing AI credentials or dependency faults return a safe 503 envelope identifying check names. Without a database URL, liveness still runs and readiness returns 503. No health endpoint calls AI. Default host storage is `<repo>/.local/documents`, created privately on the first readiness probe and never served statically.
 
 Host servers bind to `127.0.0.1`. If port 3000 is occupied, use `PORT=3100 WEB_ORIGIN=http://localhost:3100 pnpm dev`, or put those settings in `.env`. `API_PORT` and `DB_PORT` override host ports; update host database URLs when changing `DB_PORT`. Shell variables override root `.env`, loaded relative to the launcher even for filtered app dev/start commands. Root `dev` generates the Prisma client and builds shared contracts first; do both explicitly before running a filtered app from a fresh install. Stop with Ctrl-C.
 
-For the complete container runtime:
+For the complete container runtime, set `OPENAI_API_KEY` in private root `.env` first. Canonical chunk text is sent to OpenAI for embeddings, including on reprocess. Then:
 
 ```bash
 pnpm infra:up
@@ -111,7 +111,7 @@ After `pnpm build`, filtered API/web `start` commands run the compiled host apps
 
 Keep `Unsupported("vector(1536)")` in the committed schema and the custom extension/type/check SQL in migrations. Prisma 7 introspection prints `Unsupported("vector")`, omitting dimensions, and does not model SQL CHECK constraints. Use read-only `db pull --print`; review any future introspection changes rather than overwriting this schema. Real catalog/readiness tests own dimension verification; a clean Prisma diff alone cannot establish it.
 
-## Document API (S02)
+## Document management and ingestion API (S02–S03)
 
 With the database migrated and API running, create a synthetic fixture and use the REST API:
 
@@ -121,25 +121,37 @@ curl -i -F 'file=@/tmp/synthetic-notes.txt' http://localhost:3001/api/documents
 curl -i 'http://localhost:3001/api/documents?limit=20'
 # Substitute the returned UUID:
 curl -i 'http://localhost:3001/api/documents/<id>'
+# Reprocess only after ready/failed; it clears the old generation and may cost again:
+curl -i -X POST 'http://localhost:3001/api/documents/<id>/reprocess'
 curl -i -X DELETE 'http://localhost:3001/api/documents/<id>'
 curl -i -X DELETE 'http://localhost:3001/api/documents/<id>'
 ```
 
-Use a quoted URL after substituting the UUID; `<id>` is an illustrative placeholder. Upload exactly one `file` and no other fields. PDF, UTF-8 TXT, `.md` and `.markdown` are supported, with server-verified bytes and canonical MIME. The API returns 201 with `Location` and pending metadata after storing the original; **pending does not process in S02**. The five-pending cap therefore requires deleting an upload before admitting a sixth. Reprocess, extraction, embeddings, search, chat and product UI arrive later.
+Use a quoted URL after substituting the UUID; `<id>` is an illustrative placeholder. Upload exactly one `file` and no other fields. PDF, UTF-8 TXT, `.md` and `.markdown` are supported, with server-verified bytes and canonical MIME. The API returns 201 with `Location` and pending metadata after storing the original; a single scanner processes oldest pending rows when AI is configured. At most five pending/processing documents are admitted. Poll detail for ready/failed; without a key delete pending uploads to free capacity. Search, chat and product UI arrive in S04–S06.
 
-Defaults are 10 MiB/file, two simultaneous streams, a 60-second receipt/validation deadline, 100 documents/200 MiB retained originals, and 10 uploads or 120 list/detail/delete requests per client per minute. Settings may be lowered in `.env`; 429 includes `Retry-After`. Mutations accept the exact `WEB_ORIGIN` when an Origin header is present; curl may omit it. GET pagination supports `status` and a signed cursor bound to that filter; cursors expire on API restart.
+Defaults are 10 MiB/file, two simultaneous streams, a 60-second receipt/validation deadline, 100 documents/200 MiB retained originals, and 10 upload/reprocess requests combined or 120 list/detail/delete requests per client per minute. Settings may be lowered in `.env`; 429 includes `Retry-After`. Mutations accept the exact `WEB_ORIGIN` when an Origin header is present; curl may omit it. GET pagination supports `status` and a signed cursor bound to that filter; cursors expire on API restart.
 
 Generated originals and staging files stay under private `STORAGE_ROOT`, outside web/static directories. DELETE invalidates evidence, removes the original and metadata, and returns empty 204 only after cleanup; repeated deletion is safe. A cleanup failure returns 500/`DELETE_FAILED` and leaves an inspectable deleting row for retry. Startup/hourly reconciliation retries deleting rows and removes only generated, unreferenced files older than an hour, skipping symlinks and unknown paths. Storage faults and crashes may delay compensation until reconciliation; this is logical deletion, not secure physical erasure. No file download route exists.
 
-See [REST contracts](docs/architecture/api-contracts.md), [generated OpenAPI](docs/architecture/openapi.json), and [S02 verification evidence](docs/features/stages/S02-document-management.md#verification-evidence). `pnpm test:integration` performs the curl workflow against disposable database/storage fixtures as well as controlled lifecycle-failure tests.
+See [REST contracts](docs/architecture/api-contracts.md), [generated OpenAPI](docs/architecture/openapi.json), and [S02 verification evidence](docs/features/stages/S02-document-management.md#verification-evidence). `pnpm test:integration` performs both document-management and S03 ingestion curl workflows against disposable database/storage with fake embeddings, plus controlled failure/race tests.
+
+## Processing limits and limitations (S03)
+
+PDF extraction uses physical pages, TXT retains original lines, and Markdown retains heading paths/section ordinals/lines (headings inside fenced code are ignored). Chunk text is an exact normalized source substring with UTF-16 offsets; normalization handles BOM/CRLF/NFC and trailing horizontal whitespace. PDF reading order, glyph spacing and tables can be imperfect. Encrypted/malformed PDFs fail safely; image-only/scanned PDFs fail `NO_EXTRACTABLE_TEXT`. No OCR is provided.
+
+Extraction, normalization, token counting and chunking run in a terminable worker: defaults are 15 seconds, 256 MiB worker heap, 100 PDF pages, 500000 characters, 100000 pre-overlap tokens and 256 chunks. Chunk target/maximum is 600 tokens with up to 100 overlap tokens. API Compose limits are 1 GiB memory and one CPU. Worker heap limits do not cap all native allocations; this is not a complete hostile-file sandbox.
+
+Embeddings use `text-embedding-3-small`, explicit 1536 dimensions and profile `openai-small-1536-v1`. Batches are bounded by both 32 chunks and the provider token cap, with a shared two-call semaphore. Per-attempt/whole-run deadlines are 20/180 seconds. Up to two eligible transport retries use bounded backoff; SDK retries are disabled. Authentication/format/invalid-output errors do not retry. Failure retains the original and no partial indexed generation. Restart marks interrupted runs failed; pending resumes. Delete/shutdown abort active work; run IDs reject late publication. No failed document is automatically re-embedded.
+
+`POST /api/documents/:id/reprocess` returns 202/pending for ready/failed documents with readable originals and capacity. It clears the old generation before scheduling another, preserving original metadata. Busy, missing-original and capacity faults return documented 409 errors. Each reprocess may incur embedding costs. Required checks use fake AI; paid live embedding smoke and semantic-quality evaluation were not run.
 
 ## Environment configuration
 
-The [system overview](docs/architecture/system-overview.md) owns configuration defaults. API validation is implemented for the listed settings, including integer/range bounds, overlap smaller than chunk size, absolute storage paths, and local web origins. Blank database/AI values are treated as absent. S01 readiness checks the database, extension, required vector dimension, stored ready profile/model/dimensions/pipeline, and actual storage I/O. Later stages add AI operation requirements. Invalid settings fail startup with variable names and no values. `NEXT_PUBLIC_*` configuration remains unsupported and rejected by the API.
+The [system overview](docs/architecture/system-overview.md) owns configuration defaults. API validation is implemented for the listed settings, including integer/range bounds, overlap smaller than chunk size, absolute storage paths, and local web origins. Blank database/AI values are treated as absent. S01 readiness checks the database, extension, required vector dimension, stored ready profile/model/dimensions/pipeline, and actual storage I/O. S03 requires local AI configuration for readiness and claims; health never makes provider calls. Invalid settings fail startup with variable names and no values. `NEXT_PUBLIC_*` configuration remains unsupported and rejected by the API.
 
 Root `.env` is private and ignored; `.env.example` contains placeholders. The API and web dev/start scripts explicitly load it, with shell variables taking precedence. Quality checks do not load the private file, and tests use isolated settings. `DATABASE_URL`, `MIGRATION_DATABASE_URL`, local passwords, `OPENAI_API_KEY`, `OPENAI_CHAT_MODEL`, `STORAGE_ROOT`, and the internal proxy target are server-only. No Next.js public configuration exports secrets. The same-origin proxy is planned for S06.
 
-The embedding profile is initially `text-embedding-3-small`, 1,536 dimensions; generation model selection and tokenizer compatibility are verified during implementation. Changing an embedding profile requires coordinated schema/data migration, not just an environment edit.
+The embedding profile is initially `text-embedding-3-small`, 1,536 dimensions; S03 pins PDF.js 6.5.438, js-tiktoken 1.0.21 (`cl100k_base`) and OpenAI Node SDK 7.57.0, verified on Node 24.22.3. The accepted model/profile/pipeline identifiers are fixed to the v1 configuration; generation selection remains S05. Changing an embedding profile requires coordinated schema/data migration, not just an environment edit.
 
 ## Development commands
 
@@ -163,7 +175,7 @@ Run `pnpm lint`, `pnpm typecheck`, `pnpm test`, and `pnpm build`. S00 tests cove
 
 `pnpm test:integration` starts a unique Compose project with the same pinned image, random credentials, a generated `aka_test_<run-id>` database, a random loopback port, tmpfs database data, and temporary storage. It refuses supplied `TEST_DATABASE_URL`/`TEST_STORAGE_ROOT` overrides, ignores normal database targets, checks ownership before writes, replays committed migrations, verifies read-only introspection and schema diff, regenerates the client, and runs real vector/constraint/privilege/readiness and document lifecycle tests. S02 covers supported/invalid uploads, private storage, quota races, stable pagination, safe errors, deletion fencing/compensation/retry, cleanup, admission and stream disconnect/deadline handling; the harness builds the API and runs a curl REST demo too. Cleanup removes only that project and its temporary storage, including after failures; it never removes named volumes. Unit tests also verify rejected production-looking URLs/storage paths and document format/name/path/quota/cursor rules. Normal tests make no database/provider calls and check generated OpenAPI for drift.
 
-Later stages will add normalization/chunking/context tests, business integration with AI fakes, browser workflows, and synthetic AI evaluation. There are no measured RAG quality scores yet. See [testing strategy](docs/architecture/testing-strategy.md).
+S03 adds canonical source/Unicode/chunk tests, real PDF worker fixtures, embedding validation/retry/deadline/semaphore tests, real-database atomic publication/rollback/reprocess/restart/delete races, and a curl processing demo with fake AI. Later stages add retrieval/context/answer tests, browser workflows and semantic evaluation. There are no measured RAG quality scores yet. See [testing strategy](docs/architecture/testing-strategy.md).
 
 ## Roadmap and future work
 
@@ -171,4 +183,4 @@ Use the [primary execution roadmap](docs/features/ROADMAP.md): S00 setup → S01
 
 Authentication, deployment hardening, OCR, background queues, streaming, hybrid search, reranking, chat history, additional providers, versioning, S3 storage, and observability dashboards are optional [future work](docs/product/mvp-scope.md). They are not MVP infrastructure.
 
-S00–S02 are complete; S03–S07 remain unimplemented and require an explicit request. Agents should first read [AGENTS.md](AGENTS.md).
+S00–S03 are complete; S04–S07 remain unimplemented and require an explicit request. Agents should first read [AGENTS.md](AGENTS.md).

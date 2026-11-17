@@ -96,6 +96,7 @@ try {
   run('pnpm', ['--filter', '@aka/api', 'test:integration']);
   run('pnpm', ['--filter', '@aka/api', 'build']);
   run('node', ['scripts/document-rest-demo.mjs']);
+  run('node', ['scripts/ingestion-rest-demo.mjs']);
   run('pnpm', [
     '--filter',
     '@aka/api',

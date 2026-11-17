@@ -7,6 +7,7 @@ import { LocalDocumentStore } from './local-document-store';
 import { UploadReceiver } from './upload-receiver';
 import { DocumentAdmissionGuard } from './document-admission.guard';
 import { DocumentCleanupService } from './document-cleanup.service';
+import { DocumentWorkSignals } from './document-work-signals';
 
 @Module({
   imports: [ConfigModule, DatabaseModule],
@@ -17,7 +18,8 @@ import { DocumentCleanupService } from './document-cleanup.service';
     UploadReceiver,
     DocumentAdmissionGuard,
     DocumentCleanupService,
+    DocumentWorkSignals,
   ],
-  exports: [DocumentsService, LocalDocumentStore],
+  exports: [DocumentsService, LocalDocumentStore, DocumentWorkSignals],
 })
 export class DocumentsModule {}

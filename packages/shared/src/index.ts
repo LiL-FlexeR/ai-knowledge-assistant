@@ -58,6 +58,32 @@ export const documentSchema = z.strictObject({
 });
 export type DocumentDTO = z.infer<typeof documentSchema>;
 export const documentResponseSchema = successEnvelopeSchema(documentSchema);
+export const reprocessResponseSchema = documentResponseSchema;
+const span = {
+  unitIndex: z.number().int().nonnegative(),
+  charStart: z.number().int().nonnegative(),
+  charEnd: z.number().int().nonnegative(),
+};
+const lines = {
+  sectionOrdinal: z.number().int().positive(),
+  lineStart: z.number().int().positive(),
+  lineEnd: z.number().int().positive(),
+};
+export const sourceLocationSchema = z.discriminatedUnion('kind', [
+  z.strictObject({
+    kind: z.literal('pdf'),
+    ...span,
+    page: z.number().int().positive(),
+  }),
+  z.strictObject({ kind: z.literal('text'), ...span, ...lines }),
+  z.strictObject({
+    kind: z.literal('markdown'),
+    ...span,
+    ...lines,
+    headingPath: z.array(z.string()),
+  }),
+]);
+export type SourceLocation = z.infer<typeof sourceLocationSchema>;
 export const documentListQuerySchema = z.strictObject({
   limit: z
     .string()

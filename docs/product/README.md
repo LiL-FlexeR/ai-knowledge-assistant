@@ -1,6 +1,6 @@
 # Product documentation
 
-S00–S02 implement workspace tooling, API liveness/readiness/configuration, a minimal web shell, local Prisma/PostgreSQL/pgvector infrastructure, and private document upload/list/detail/delete. Uploads remain pending; ingestion, retrieval, AI and product screens remain planned. These documents describe the intended local MVP and the evidence required to call it complete.
+S00–S03 implement workspace tooling, API liveness/readiness/configuration, a minimal web shell, local Prisma/PostgreSQL/pgvector infrastructure, private document management and source-aware ingestion with embeddings and reprocessing. Retrieval, question answering and product screens remain planned. Missing AI configuration leaves uploads pending and readiness unavailable. These documents describe the intended local MVP and the evidence required to call it complete.
 
 - [Product vision](product-vision.md): problem, users, value, core journey.
 - [Requirements](requirements.md): traceable functional/non-functional requirements.

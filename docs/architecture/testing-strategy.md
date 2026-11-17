@@ -17,9 +17,15 @@ S01 provides an isolated Compose PostgreSQL/pgvector service/database using the 
 
 Use hand-constructed nonzero 1536-dimensional vectors (e.g. padded basis vectors) to prove cosine order and cutoff behavior without assuming an embedding service's semantics. Test invalid length/nonfinite/zero-norm vectors at the adapter boundary. Verify profile filters, FK cascade, and transaction rollback using database assertions. Inject fake filesystem/provider failures to exercise compensation. Freeze IDs/times only when needed; assert outcomes rather than implementation-private call order.
 
+## S03 deterministic ingestion evidence
+
+`ingestion.spec.ts` exercises canonical normalization, original-line/heading maps, Unicode chunks/overlap/progress/caps, and the production extraction worker on real physical-page, malformed, encrypted-dictionary and image-only PDF fixtures. `embeddings.spec.ts` uses SDK/transport fakes for index/vector validation, count/token batching, retry eligibility, per-attempt/whole-deadline behavior and shared admission. `ingestion.integration.ts` uses the real database with an injected fake embedding boundary for atomic publication/rollback, safe failures, reprocess admission/invalidation, restart recovery, shutdown/timeouts, stale-run rejection and delete-during-provider work.
+
+The isolated harness builds the production worker before tests and runs `scripts/ingestion-rest-demo.mjs`: actual curl uploads of TXT/PDF/Markdown, ready inspection with persisted physical pages, image-only failure, transient fake-provider failure then explicit reprocess, and cancellation during deletion. It never calls paid models.
+
 ## Synthetic evaluation corpus
 
-S07 will materialize these original, project-authored facts into redistributable fixtures (TXT, heading-preserving Markdown, and a generated two-page text PDF). S03 can use a subset early. All names are fictional. Fixture generation must record physical PDF pages and source unit/line mappings. The following passages define the initial gold evidence; no results have been measured.
+S07 will materialize these original, project-authored facts into redistributable fixtures (TXT, heading-preserving Markdown, and a generated two-page text PDF). S03 uses a separate small CC0 corpus under `apps/api/test/fixtures` for source/lifecycle and curl checks; it does not represent completion of the S07 gold evaluation corpus. All names are fictional. Fixture generation must record physical PDF pages and source unit/line mappings. The following passages define the initial gold evidence; no results have been measured.
 
 | Fixture / location | Synthetic content |
 | --- | --- |

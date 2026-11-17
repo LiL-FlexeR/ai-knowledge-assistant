@@ -1,6 +1,6 @@
 # REST API contracts
 
-S02 implements health and upload/list/detail/delete. Generated [OpenAPI 3.1](openapi.json) uses the browser-safe shared response schemas and includes the multipart request schema, response examples, statuses, reusable errors, and admission limits. Regenerate with `pnpm api:openapi`; `pnpm test` checks for drift. Reprocess, search, and ask below remain planned for S03–S05. No Swagger UI or public file route is installed.
+S03 implements health, upload/list/detail/delete, background ingestion, and reprocess. Generated [OpenAPI 3.1](openapi.json) uses the browser-safe shared response schemas and includes the multipart request schema, response examples, statuses, reusable errors, and admission limits. Regenerate with `pnpm api:openapi`; `pnpm test` checks for drift. Search and ask below remain planned for S04–S05. No Swagger UI or public file route is installed.
 
 ## Conventions
 
@@ -58,7 +58,7 @@ Error envelope:
 
 Multipart form with exactly one `file`, no additional fields. Limit one file to 10 MiB. Allowed suffixes `.pdf`, `.txt`, `.md`, `.markdown` (case insensitive). Require compatible server-verified bytes: PDF header and later parser validation; strict UTF-8 nonbinary text for TXT/Markdown. Canonical MIME comes from validated format, not the browser claim. Allow an empty or generic `application/octet-stream` client type when suffix/bytes agree; reject a conflicting known type. A filename alone never proves format.
 
-201 returns `DocumentDTO` with pending status and `Location: /api/documents/:id`. Return after local storage/metadata commit; do not wait for embeddings. In S02 pending is intentionally stable until S03 adds the runner; this is not a completed RAG upload. Empty/invalid text and obvious invalid file signatures fail immediately. PDF parser errors and extracted-content limits discovered later appear as failed status.
+201 returns `DocumentDTO` with pending status and `Location: /api/documents/:id`. Return after local storage/metadata commit; do not wait for embeddings. From S03 the scanner consumes pending rows with configured AI; without credentials uploads wait and readiness reports 503. Upload success alone does not establish a ready generation. Empty/invalid text and obvious invalid file signatures fail immediately. PDF parser errors and extracted-content limits discovered later appear as failed status.
 
 Errors: 400 malformed multipart/count/fields; 413 file too large; 415 unsupported or conflicting format; 422 empty/invalid UTF-8 content; 429 request rate; 409 `CAPACITY_EXCEEDED` for 100-document, 200-MiB-original, or five-pending/processing quota; 500 `STORAGE_ERROR`/`INTERNAL_ERROR`. Staging files must be cleaned on failure.
 

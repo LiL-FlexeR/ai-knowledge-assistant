@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted, 2026-11-16. S01 implements and verifies the base schema, migrations, infrastructure primitives, and readiness. S02 implements private original storage, quota admission and compensated document deletion using that schema. Ingestion lifecycle services remain planned for S03.
+Accepted, 2026-11-16. S01 implements and verifies the base schema, migrations, infrastructure primitives, and readiness. S02 implements private original storage, quota admission and compensated document deletion using that schema. S03 implements claims, complete generation publication, restart recovery and manual reprocessing using the existing schema; no migration was needed.
 
 ## Context
 

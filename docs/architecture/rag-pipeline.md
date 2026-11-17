@@ -24,6 +24,16 @@ Initial profile: `openai-small-1536-v1`, `text-embedding-3-small`, explicit 1536
 
 Embed at most 32 chunks per batch, reducing further to meet the provider's verified aggregate token limit. Preserve response indices; validate count, uniqueness, dimensions, finite values, and nonzero norm. Never pair vectors to chunks solely by arrival order. Bound the shared outbound AI semaphore to two and ingestion to one document. Stage vectors in bounded memory and publish only a complete run; retries of embedding calls can incur additional charges. Store profile and pipeline version with the successful document.
 
+### S03 implementation and verified boundaries
+
+PDF.js 6.5.438 extracts physical pages with streamed text items inside the resource-limited preparation worker. Input is bytes only; no page rendering, annotations, document JavaScript, attachments or external URLs are requested. PDF.js 6 removed the old `isEvalSupported` option; this version does not use the old dynamic-evaluation path. Encrypted/password-protected and malformed PDFs fail safely; image-only PDFs fail `NO_EXTRACTABLE_TEXT`. Reading order, tables, glyph spacing and mixed image/text PDFs remain parser limitations; OCR is unavailable.
+
+`js-tiktoken` 1.0.21 uses bundled `cl100k_base` ranks; special-token-looking source strings are encoded as ordinary text. Canonical normalization and original-line maps precede chunk selection. The chunker chooses exact Unicode-safe substrings, prefers paragraph/sentence endings in the latter half of a candidate, recounts selected spans, bounds overlap and guarantees forward progress. Document tokens are counted before overlap in the worker, so a pathological tokenizer input can be terminated with extraction. Publication validates source/unit/chunk spans without rerunning unbounded tokenization on the HTTP event loop.
+
+OpenAI Node SDK 7.57.0 sends only chunk text, explicit 1536 dimensions and float encoding to `text-embedding-3-small`. The [verified provider request contract](https://developers.openai.com/api/reference/resources/embeddings/methods/create) allows at most 8192 tokens per input, 2048 inputs and 300000 aggregate tokens; S03 further caps batches at 32 and chunks at 600 tokens. The adapter enforces both batch count and aggregate-token limits, maps indices, checks response model/vectors and records safe usage/attempt/latency fields. SDK retries are disabled. Its shared semaphore includes wait time in the operation signal/deadline; retries use 500/1000 ms exponential delay, up to 99 ms jitter and Retry-After bounded to five seconds. It starts an attempt only if the complete configured timeout fits the remaining deadline. Invalid output/auth failures do not retry.
+
+Deterministic fakes establish source/lifecycle integrity, not semantic retrieval quality or account-specific model availability. The paid embedding smoke and semantic evaluation have not been run.
+
 ## Retrieval
 
 1. Validate trimmed question/query: 1–2000 characters and at most 512 selected-model tokens.

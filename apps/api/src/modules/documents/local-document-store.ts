@@ -135,6 +135,24 @@ export class LocalDocumentStore {
     );
   }
 
+  async readOriginal(path: string): Promise<Buffer> {
+    assertOriginalPath(path);
+    await this.ensureRoot();
+    const target = join(this.config.STORAGE_ROOT, path);
+    const directory = await lstat(dirname(target));
+    if (!directory.isDirectory() || directory.isSymbolicLink())
+      throw storageError();
+    const file = await open(target, constants.O_RDONLY | constants.O_NOFOLLOW);
+    try {
+      const info = await file.stat();
+      if (!info.isFile() || info.size > this.config.MAX_UPLOAD_BYTES)
+        throw storageError();
+      return await file.readFile();
+    } finally {
+      await file.close();
+    }
+  }
+
   async removeStage(name: string): Promise<void> {
     if (!stagePattern.test(name)) throw storageError();
     await this.ensureRoot();

@@ -52,10 +52,14 @@ export const environmentSchema = z
     SHADOW_DATABASE_URL: optional(postgresUrl),
     OPENAI_API_KEY: optional(z.string().trim().min(1)),
     OPENAI_CHAT_MODEL: optional(z.string().trim().min(1)),
-    OPENAI_EMBEDDING_MODEL: z.string().min(1).default('text-embedding-3-small'),
+    OPENAI_EMBEDDING_MODEL: z
+      .literal('text-embedding-3-small')
+      .default('text-embedding-3-small'),
     EMBEDDING_DIMENSIONS: integer(1536, 1536, 1536),
-    EMBEDDING_PROFILE_ID: z.string().min(1).default('openai-small-1536-v1'),
-    PIPELINE_VERSION: z.string().min(1).default('v1'),
+    EMBEDDING_PROFILE_ID: z
+      .literal('openai-small-1536-v1')
+      .default('openai-small-1536-v1'),
+    PIPELINE_VERSION: z.literal('v1').default('v1'),
     MAX_UPLOAD_BYTES: integer(10485760),
     MAX_UPLOAD_STREAMS: integer(2),
     UPLOAD_TIMEOUT_MS: integer(60000),

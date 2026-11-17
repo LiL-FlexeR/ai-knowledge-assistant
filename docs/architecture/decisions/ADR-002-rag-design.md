@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted for planning, 2026-11-16. Quality settings are initial hypotheses to evaluate after implementation.
+Accepted, 2026-11-16. S03 ingestion implemented and verified on 2026-11-17; retrieval and grounded generation remain planned. Quality settings are initial hypotheses to evaluate after implementation.
 
 ## Context
 
@@ -28,3 +28,7 @@ The generation model remains a deployment configuration choice to verify in S05,
 ## Consequences
 
 Chunk boundaries, extraction order, and query phrasing affect retrieval. Exact search is a clear small-corpus baseline, not a scaling claim. Structured output provides citation identity checks, not entailment verification. Prompt injection and hallucination remain possible; [evaluation](../testing-strategy.md) and visible excerpts are required. Model/profile changes require explicit reindexing; simple reprocessing temporarily removes document searchability.
+
+## S03 implementation evidence
+
+The initial model/profile and source invariants are implemented without an architectural scope change. PDF.js 6.5.438, js-tiktoken 1.0.21 (`cl100k_base`) and OpenAI SDK 7.57.0 were verified against their package engines and exercised on Node 24.22.3. Extraction/chunking is bounded by a terminable worker; complete vectors publish with text/source/profile/ready in one row-locked, run-fenced transaction. Reprocess removes the old generation; no fallback version is retained. Exact choices, request caps, parser limitations and fake-provider evidence are in [pipeline](../rag-pipeline.md#s03-implementation-and-verified-boundaries) and [S03 evidence](../../features/stages/S03-document-ingestion.md#verification-evidence). No live semantic-quality result is claimed.

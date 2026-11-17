@@ -1,6 +1,6 @@
 # Demo scenarios
 
-Planned scenarios, executable only after the relevant stages. Use the fictional corpus and gold facts in [testing strategy](../architecture/testing-strategy.md). Never use private uploads for a public portfolio demo. Record the actual environment/models and observed behavior; expected answers here are acceptance targets, not recorded results.
+The UI/answer scenarios below remain planned until their owning stages. S03 provides a verified REST-only processing demo through `pnpm test:integration`: synthetic TXT/two-page PDF/Markdown to ready, physical source pages, image-only failure, explicit reprocess after a fake-provider fault, and delete during processing without resurrected evidence. This demo uses separate CC0 fixtures and deterministic vectors; it does not measure semantic quality. Use the fictional corpus and gold facts in [testing strategy](../architecture/testing-strategy.md). Never use private uploads for a public portfolio demo. Record the actual environment/models and observed behavior; expected answers here are acceptance targets, not recorded results.
 
 ## 1. Setup and document processing
 

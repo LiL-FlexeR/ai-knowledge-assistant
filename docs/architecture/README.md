@@ -1,6 +1,6 @@
 # Architecture guide
 
-These documents specify target behavior. S00–S02 implement the workspace, liveness/readiness/configuration/error foundation, minimal web shell, local Compose runtime, Prisma/pgvector persistence primitives, and private document upload/list/detail/delete with compensated cleanup. Ingestion and RAG runtime behavior remain planned; uploads stay pending. The [generated OpenAPI](openapi.json) describes implemented routes only.
+These documents specify target behavior. S00–S03 implement the workspace, liveness/readiness/configuration/error foundation, minimal web shell, local Compose runtime, Prisma/pgvector persistence, private document management, and bounded ingestion with source-aware chunks, OpenAI embeddings, recovery and reprocessing. Retrieval and question answering remain planned; without AI configuration pending work waits and readiness reports 503. The [generated OpenAPI](openapi.json) describes implemented routes only.
 
 | Document | Owns |
 | --- | --- |

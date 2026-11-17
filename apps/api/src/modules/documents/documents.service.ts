@@ -12,6 +12,7 @@ import type { Document } from '../../generated/prisma/client';
 import { DocumentCursors } from './cursor';
 import { LocalDocumentStore } from './local-document-store';
 import { UploadReceiver } from './upload-receiver';
+import { DocumentWorkSignals } from './document-work-signals';
 
 export function toDocumentDTO(row: Document): DocumentDTO {
   return documentSchema.parse({
@@ -57,6 +58,7 @@ export class DocumentsService {
     private readonly store: LocalDocumentStore,
     private readonly receiver: UploadReceiver,
     @Inject(API_CONFIG) private readonly config: Environment,
+    private readonly work: DocumentWorkSignals,
   ) {}
   private get db() {
     if (!this.database.client)
@@ -205,6 +207,7 @@ export class DocumentsService {
           },
         });
       });
+      this.work.cancel(id);
       if (!row) return;
       this.logger.log({
         operation: 'document.delete',
@@ -237,5 +240,78 @@ export class DocumentsService {
         'Document cleanup failed. Retry deletion.',
       );
     }
+  }
+
+  async reprocess(id: string): Promise<DocumentDTO> {
+    const db = this.db;
+    const current = await db.document.findUnique({ where: { id } });
+    if (!current)
+      throw new ApiError(404, 'DOCUMENT_NOT_FOUND', 'Document not found.');
+    if (!['ready', 'failed'].includes(current.status))
+      throw new ApiError(
+        409,
+        'DOCUMENT_BUSY',
+        'Document is already pending, processing or deleting.',
+      );
+    try {
+      await this.store.readOriginal(current.storagePath);
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === 'ENOENT')
+        throw new ApiError(
+          409,
+          'ORIGINAL_FILE_MISSING',
+          'Original file is missing.',
+        );
+      throw storageError();
+    }
+    const row = await db.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(71002)`;
+      const locked = await tx.$queryRaw<
+        { id: string }[]
+      >`SELECT id FROM documents WHERE id = ${id}::uuid FOR UPDATE`;
+      if (!locked.length)
+        throw new ApiError(404, 'DOCUMENT_NOT_FOUND', 'Document not found.');
+      const document = await tx.document.findUniqueOrThrow({ where: { id } });
+      if (!['ready', 'failed'].includes(document.status))
+        throw new ApiError(
+          409,
+          'DOCUMENT_BUSY',
+          'Document is already pending, processing or deleting.',
+        );
+      const pending = await tx.document.count({
+        where: { status: { in: ['pending', 'processing'] } },
+      });
+      if (pending >= this.config.MAX_PENDING_DOCUMENTS)
+        throw new ApiError(
+          409,
+          'CAPACITY_EXCEEDED',
+          'Processing capacity is full. Try again after processing finishes.',
+        );
+      await tx.documentChunk.deleteMany({ where: { documentId: id } });
+      return tx.document.update({
+        where: { id },
+        data: {
+          status: 'pending',
+          processingRunId: randomUUID(),
+          chunkCount: 0,
+          extractedContent: null,
+          sourceMap: Prisma.DbNull,
+          processingError: Prisma.DbNull,
+          embeddingProfileId: null,
+          embeddingModel: null,
+          embeddingDimensions: null,
+          pipelineVersion: null,
+          processingStartedAt: null,
+          processedAt: null,
+        },
+      });
+    });
+    this.work.cancel(id, row.processingRunId);
+    this.logger.log({
+      operation: 'document.reprocess',
+      documentId: id,
+      status: 'pending',
+    });
+    return toDocumentDTO(row);
   }
 }

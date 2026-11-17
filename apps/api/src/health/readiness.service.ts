@@ -11,7 +11,9 @@ import { StorageProbe } from './storage-probe';
 
 export class ReadinessUnavailable extends ServiceUnavailableException {
   constructor(
-    readonly failedChecks: ('database' | 'storage' | 'embeddingProfile')[],
+    readonly failedChecks: (
+      'database' | 'storage' | 'embeddingProfile' | 'aiConfiguration'
+    )[],
   ) {
     super('Service dependencies are not ready.');
   }
@@ -38,6 +40,7 @@ export class ReadinessService {
       failed.push('embeddingProfile');
     }
     if (storage.status === 'rejected') failed.push('storage');
+    if (!this.config.OPENAI_API_KEY) failed.push('aiConfiguration');
     if (failed.length) throw new ReadinessUnavailable(failed);
     return {
       status: 'ready',

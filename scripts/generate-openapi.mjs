@@ -9,6 +9,8 @@ const contracts = require('../../packages/shared/dist/index.js');
 const names = {
   Document: contracts.documentSchema,
   DocumentResponse: contracts.documentResponseSchema,
+  ReprocessResponse: contracts.reprocessResponseSchema,
+  SourceLocation: contracts.sourceLocationSchema,
   DocumentListResponse: contracts.documentListResponseSchema,
   ErrorResponse: contracts.errorResponseSchema,
   HealthResponse: contracts.healthResponseSchema,
@@ -96,9 +98,9 @@ const output = {
   openapi: '3.1.0',
   info: {
     title: 'AI Knowledge Assistant local API',
-    version: '0.2.0',
+    version: '0.3.0',
     description:
-      'Implemented through S02. Uploads remain pending; no ingestion, reprocess, search, chat, or original download endpoints. Local single API process only.',
+      'Implemented through S03. Pending uploads are processed into complete source-aware vector generations when AI is configured. Reprocess may incur embedding cost. Search/chat and original download endpoints are unavailable. Local single API process only.',
   },
   servers: [{ url: 'http://127.0.0.1:3001/api' }],
   paths: {
@@ -112,7 +114,7 @@ const output = {
         responses: {
           200: success(
             'ReadinessResponse',
-            'Local dependencies are ready; AI may be disabled.',
+            'Local dependencies and AI configuration are ready; no paid health calls.',
           ),
           ...responses(503),
         },
@@ -122,7 +124,7 @@ const output = {
       post: {
         summary: 'Store one validated original and pending metadata',
         description:
-          'Exactly one file and no fields. PDF header or strict nonbinary UTF-8 text must agree with .pdf/.txt/.md/.markdown suffix and MIME. Empty/generic MIME is allowed. Defaults: 10 MiB/file, two concurrent streams, 60-second upload deadline, 10 requests/minute. Admission serializes 100-document/200-MiB/five-pending quotas. All may be configured downward. No AI calls.',
+          'Exactly one file and no fields. PDF header or strict nonbinary UTF-8 text must agree with .pdf/.txt/.md/.markdown suffix and MIME. Empty/generic MIME is allowed. Defaults: 10 MiB/file, two concurrent streams, 60-second upload deadline, 10 upload/reprocess requests/minute combined. Admission serializes 100-document/200-MiB/five-pending quotas. All may be configured downward. Upload returns pending; background processing sends canonical chunk text to OpenAI when configured.',
         requestBody: {
           required: true,
           content: {
@@ -213,6 +215,35 @@ const output = {
           500: error(
             'DELETE_FAILED',
             'Document cleanup failed. Retry deletion.',
+          ),
+        },
+      },
+    },
+    '/documents/{id}/reprocess': {
+      parameters: [id],
+      post: {
+        summary:
+          'Clear a ready/failed generation and schedule processing again',
+        description:
+          'No body or query. Requires a readable original and pending capacity. Atomically clears old evidence and assigns a new run. Shares the upload request limit. Re-embedding may incur cost.',
+        responses: {
+          202: {
+            ...success(
+              'ReprocessResponse',
+              'Pending metadata with old evidence invalidated.',
+              { data: exampleDocument, requestId },
+            ),
+            headers: {
+              Location: {
+                schema: { type: 'string' },
+                example: `/api/documents/${exampleDocument.id}`,
+              },
+            },
+          },
+          ...responses(400, 403, 404, 429, 500, 503),
+          409: error(
+            'DOCUMENT_BUSY',
+            'DOCUMENT_BUSY for pending/processing/deleting; CAPACITY_EXCEEDED for pending capacity; ORIGINAL_FILE_MISSING if the original cannot be found.',
           ),
         },
       },
