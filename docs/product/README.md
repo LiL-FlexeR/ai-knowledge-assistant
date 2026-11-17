@@ -10,3 +10,5 @@ S00–S06 implement workspace tooling, API liveness/readiness/configuration, the
 - [Demo scenarios](demo-scenarios.md): reproducible demonstrations and limitations.
 
 Implementation follows the [roadmap](../features/ROADMAP.md). Transport/schema details live in [architecture](../architecture/README.md), not separate product-specific DTO definitions.
+
+S07 adds the original Orion corpus, offline/opt-in capped live evaluation, human review records and fresh-setup/regression evidence. See [S07 verification](../features/stages/S07-testing-and-polish.md#verification-evidence). Live semantic quality and cutoff calibration remain unmeasured.

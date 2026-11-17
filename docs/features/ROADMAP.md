@@ -1,6 +1,6 @@
 # Implementation roadmap
 
-**Status: S00–S06 complete; S07 remains unimplemented.** Checks and limitations are recorded in [S00 evidence](stages/S00-project-setup.md#verification-evidence), [S01 evidence](stages/S01-database-and-infrastructure.md#verification-evidence), [S02 evidence](stages/S02-document-management.md#verification-evidence), [S03 evidence](stages/S03-document-ingestion.md#verification-evidence), [S04 evidence](stages/S04-semantic-retrieval.md#verification-evidence), [S05 evidence](stages/S05-ai-question-answering.md#verification-evidence), and [S06 evidence](stages/S06-frontend.md#verification-evidence). This is the primary execution plan for future sessions. Execute exactly the requested stage, verify its dependencies in the repository, and stop before the next stage. If prerequisites are missing, report the dependency instead of creating undocumented substitutes.
+**Status: S00–S07 complete with deterministic evidence; live AI quality is unmeasured.** Checks and limitations are recorded in [S00 evidence](stages/S00-project-setup.md#verification-evidence), [S01 evidence](stages/S01-database-and-infrastructure.md#verification-evidence), [S02 evidence](stages/S02-document-management.md#verification-evidence), [S03 evidence](stages/S03-document-ingestion.md#verification-evidence), [S04 evidence](stages/S04-semantic-retrieval.md#verification-evidence), [S05 evidence](stages/S05-ai-question-answering.md#verification-evidence), [S06 evidence](stages/S06-frontend.md#verification-evidence), and [S07 evidence](stages/S07-testing-and-polish.md#verification-evidence). This is the primary execution plan for future sessions. Execute exactly the requested stage, verify its dependencies in the repository, and stop before the next stage. If prerequisites are missing, report the dependency instead of creating undocumented substitutes.
 
 Read [AGENTS.md](../../AGENTS.md), [product requirements](../product/requirements.md), and relevant [architecture](../architecture/README.md). Detailed stage documents own execution detail; public behavior remains governed by [API contracts](../architecture/api-contracts.md). Verify current stable tooling during implementation; commands below are planned until their owning stage introduces them.
 
@@ -226,25 +226,25 @@ Completion evidence belongs in the final verification section of each stage docu
 
 **Implementation tasks**
 
-- [ ] Materialize gold synthetic corpus/cases, offline harness, explicit capped live evaluation, and result-report schema.
-- [ ] Close critical lifecycle/API/browser coverage gaps and verify a fresh documented Compose setup.
-- [ ] Run demo scenarios, review security/architecture/RAG quality, and synchronize setup/contracts/roadmap with evidence.
+- [x] Materialize gold synthetic corpus/cases, offline harness, explicit capped live evaluation, and result-report schema.
+- [x] Close critical lifecycle/API/browser coverage gaps and verify a fresh documented Compose setup.
+- [x] Run demo scenarios, review security/architecture/RAG quality, and synchronize setup/contracts/roadmap with evidence.
 
 **Expected deliverables**
 
-- [ ] Redistributable fixtures, evaluation scripts/report, regression evidence, and verified portfolio README/demo.
+- [x] Redistributable fixtures, evaluation scripts/report, regression evidence, and verified portfolio README/demo.
 
 **Acceptance criteria**
 
-- [ ] Required deterministic suites pass; evaluation reports real counts/settings and live status honestly; no unresolved critical lifecycle/citation/security defects.
+- [x] Required deterministic suites pass; evaluation reports real counts/settings and live status honestly; no unresolved critical lifecycle/citation/security defects.
 
 **Required tests**
 
-- [ ] Build/lint/typecheck/unit/integration/browser/offline evaluation, fresh migration/setup, and explicit live evaluation when available; record omissions.
+- [x] Build/lint/typecheck/unit/integration/browser/offline evaluation, fresh migration/setup, and explicit live evaluation when available; record omissions.
 
 **Definition of Done**
 
-- [ ] All MVP success criteria have linked evidence or explicitly disclosed limitations; no future infrastructure or unmeasured quality claims are introduced.
+- [x] All MVP success criteria have linked evidence or explicitly disclosed limitations; no future infrastructure or unmeasured quality claims are introduced.
 
 ## Post-MVP
 

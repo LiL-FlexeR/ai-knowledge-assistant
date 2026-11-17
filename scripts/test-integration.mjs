@@ -4,6 +4,7 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { validateLiveConfig } from '../apps/api/evaluation/core.mjs';
 import {
   assertOwnedTestDatabase,
   assertOwnedTestStorage,
@@ -17,12 +18,27 @@ if (process.env.TEST_DATABASE_URL || process.env.TEST_STORAGE_ROOT) {
   process.exit(1);
 }
 const runId = randomBytes(8).toString('hex');
+const evaluationMode = process.argv.includes('--eval-live')
+  ? 'live'
+  : process.argv.includes('--eval-offline')
+    ? 'offline'
+    : undefined;
+if (evaluationMode === 'live') {
+  if (
+    process.env.AKA_EVAL_ALLOW_PAID !== 'yes' ||
+    !process.env.OPENAI_API_KEY?.trim()
+  )
+    throw new Error('Explicit paid evaluation configuration is required.');
+  validateLiveConfig(
+    JSON.parse(process.env.AKA_EVAL_VALIDATED_CONFIG ?? 'null'),
+  );
+}
 const database = `aka_test_${runId}`;
 const storage = mkdtempSync(join(tmpdir(), 'aka-integration-'));
 const env = {
   ...process.env,
   NODE_ENV: 'test',
-  OPENAI_API_KEY: '',
+  OPENAI_API_KEY: evaluationMode === 'live' ? process.env.OPENAI_API_KEY : '',
   OPENAI_CHAT_MODEL: '',
   AKA_TEST_DATABASE: database,
   AKA_TEST_PASSWORD: randomBytes(24).toString('hex'),
@@ -94,9 +110,12 @@ try {
   run('pnpm', ['db:generate']);
   run('pnpm', ['--filter', '@aka/shared', 'build']);
   const browserOnly = process.argv.includes('--e2e');
-  if (!browserOnly) run('pnpm', ['--filter', '@aka/api', 'test:integration']);
+  if (!browserOnly && !evaluationMode)
+    run('pnpm', ['--filter', '@aka/api', 'test:integration']);
   run('pnpm', ['--filter', '@aka/api', 'build']);
-  if (browserOnly) run('node', ['scripts/browser-server.mjs']);
+  if (evaluationMode)
+    run('node', ['apps/api/evaluation/run.mjs', evaluationMode]);
+  else if (browserOnly) run('node', ['scripts/browser-server.mjs']);
   else {
     run('node', ['scripts/document-rest-demo.mjs']);
     run('node', ['scripts/ingestion-rest-demo.mjs']);
@@ -114,9 +133,11 @@ try {
     '--exit-code',
   ]);
   console.log(
-    browserOnly
-      ? 'Isolated migrations and deterministic production-browser workflows passed.'
-      : 'Isolated migrations, runtime privileges, vectors, readiness, document lifecycle and REST demo passed.',
+    evaluationMode
+      ? `Isolated ${evaluationMode} evaluation completed; see its report for quality/review status.`
+      : browserOnly
+        ? 'Isolated migrations and deterministic production-browser workflows passed.'
+        : 'Isolated migrations, runtime privileges, vectors, readiness, document lifecycle and REST demo passed.',
   );
 } catch (error) {
   console.error(error.message);

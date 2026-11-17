@@ -89,6 +89,8 @@ Start both shells, open localhost:3000, and call API liveness. Show a safe inval
 
 ## Verification evidence
 
+Historical stage snapshot. Later-stage status statements below describe this stage's verification time; see the [current roadmap](../ROADMAP.md) for S00–S07 completion and limits.
+
 Completed 2026-11-16 on Linux with Node.js **24.22.3** and pnpm **12.21.0**. The host initially supplied Node 24.16.0/pnpm 11.25.0; checks used the pinned toolchain installed under `/tmp/aka-s00-toolchain`, prepended to `PATH`. [ADR-001](../../architecture/decisions/ADR-001-technology-stack.md#s00-version-verification) records release/support sources, exact versions, peer constraints, and tooling caveats.
 
 | Check | Observed result |

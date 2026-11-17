@@ -84,6 +84,8 @@ Upload the two-page synthetic handbook and inspect ready metadata plus persisted
 
 ## Verification evidence
 
+Historical stage snapshot. Later-stage status statements below describe this stage's verification time; see the [current roadmap](../ROADMAP.md) for S00–S07 completion and limits.
+
 Implemented and verified on **2026-11-17**. The requested file defines S03 as **Document Ingestion**; S02 already provides Document Management. S00–S02 prerequisites were inspected and their existing **34 real PostgreSQL/pgvector tests**, migrations/schema checks and curl lifecycle demo passed before dependent implementation. No schema migration was needed.
 
 ### Implemented functionality

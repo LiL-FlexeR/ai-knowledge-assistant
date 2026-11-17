@@ -15,3 +15,5 @@ These documents specify target behavior. S00–S06 implement the workspace, live
 Accepted decisions: [ADR-001 stack](decisions/ADR-001-technology-stack.md), [ADR-002 RAG](decisions/ADR-002-rag-design.md), [ADR-003 storage](decisions/ADR-003-data-storage.md). Each record distinguishes selected behavior from the portions implemented and verified; acceptance alone is not completion evidence.
 
 Read [product requirements](../product/requirements.md) for user outcomes and [the roadmap](../features/ROADMAP.md) for execution order. Public contracts take precedence over illustrative examples; changes require updating their consumers and relevant stage documents together.
+
+S07 adds the original Orion corpus, offline/opt-in capped live evaluation, human review records and fresh-setup/regression evidence. See [S07 verification](../features/stages/S07-testing-and-polish.md#verification-evidence). Live semantic quality and cutoff calibration remain unmeasured.

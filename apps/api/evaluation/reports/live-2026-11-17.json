@@ -1,0 +1,55 @@
+{
+  "schemaVersion": "evaluation-report-v1",
+  "mode": "live",
+  "status": "not_run",
+  "reason": "PAID_OPT_IN_REQUIRED",
+  "startedAt": "2026-11-17T22:14:27.210Z",
+  "finishedAt": "2026-11-17T22:14:27.210Z",
+  "metadata": {},
+  "config": {},
+  "corpus": [],
+  "cases": [],
+  "regressions": [],
+  "calls": [],
+  "reservedUsd": 0,
+  "actualKnownUsd": 0,
+  "usageComplete": true,
+  "summary": {
+    "evidenceRecall": {
+      "numerator": 0,
+      "denominator": 0,
+      "value": null
+    },
+    "multiSpanRecall": {
+      "numerator": 0,
+      "denominator": 0,
+      "value": null
+    },
+    "citationIdentity": {
+      "numerator": 0,
+      "denominator": 0,
+      "value": null
+    },
+    "missingEvidenceAbstention": {
+      "numerator": 0,
+      "denominator": 0,
+      "value": null
+    },
+    "falseAbstention": {
+      "numerator": 0,
+      "denominator": 0,
+      "value": null
+    },
+    "humanReview": {
+      "numerator": 0,
+      "denominator": 0,
+      "value": null
+    }
+  },
+  "limitations": [
+    "Offline fake outputs measure mechanics only, never semantic quality.",
+    "Citation identity does not establish claim support.",
+    "Live answers require source-support review before release; no live quality pass is inferred from structural checks.",
+    "Known usage is not a billing statement; failed requests may have unknown usage."
+  ]
+}

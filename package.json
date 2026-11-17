@@ -21,6 +21,10 @@
     "db:migrate:dev": "node scripts/with-env.mjs node scripts/database.mjs migrate:dev",
     "test:integration": "node scripts/test-integration.mjs",
     "test:e2e": "node scripts/test-integration.mjs --e2e",
+    "eval:offline": "node apps/api/evaluation/launch.mjs offline",
+    "eval:live": "node apps/api/evaluation/launch.mjs live",
+    "eval:review": "node apps/api/evaluation/review.mjs",
+    "verify:setup": "node scripts/verify-setup.mjs",
     "api:openapi": "pnpm --filter @aka/shared build && node scripts/generate-openapi.mjs"
   },
   "devDependencies": {

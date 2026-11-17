@@ -268,7 +268,7 @@ test('isolated rendering: empty/validation, all source kinds, hostile text, sing
     await expect(page.getByText(title!, { exact: true })).toBeVisible();
   }
   for (const [status, code] of [
-    [409, 'EVIDENCE_CHANGED'],
+    [409, 'DOCUMENT_CHANGED'],
     [429, 'AI_CAPACITY_EXCEEDED'],
     [502, 'AI_UPSTREAM_ERROR'],
     [503, 'AI_NOT_CONFIGURED'],

@@ -9,3 +9,5 @@ next-env.d.ts
 coverage/
 .local/
 apps/api/src/generated/
+apps/api/evaluation/fixtures/
+apps/api/evaluation/reports/

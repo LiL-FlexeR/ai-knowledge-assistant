@@ -1,6 +1,17 @@
 # Demo scenarios
 
-S06 implements the browser workflow. The deterministic journey below is verified; the later Orion scenarios are live-evaluation targets for S07, not recorded model-quality results. S05 adds deterministic HTTP answer tests for single/multi-source answers, conflicts, ambiguity, injection, refusal, invalid references and deletion/reprocess races; these use scripted outputs and establish no live semantic-quality result. S03 provides a verified REST-only processing demo through `pnpm test:integration`: synthetic TXT/two-page PDF/Markdown to ready, physical source pages, image-only failure, explicit reprocess after a fake-provider fault, and delete during processing without resurrected evidence. S04 extends it with actual curl search, Markdown source metadata, PDF-only filtering, and unrelated/empty-corpus outcomes. This demo uses separate CC0 fixtures and deterministic vectors; it does not measure semantic quality. Use the fictional corpus and gold facts in [testing strategy](../architecture/testing-strategy.md). Never use private uploads for a public portfolio demo. Record the actual environment/models and observed behavior; expected answers here are acceptance targets, not recorded results.
+S07 supplies the original [Orion corpus and E01–E12 harness](../../apps/api/evaluation/README.md). The six scenarios below have deterministic evidence from the offline pipeline, real PostgreSQL/API integration and production-browser checks. Live semantic quality is unmeasured; expected model answers remain acceptance targets. No private uploads or paid AI were used. [S07 evidence](../features/stages/S07-testing-and-polish.md#verification-evidence) records the environment, commands and limitations.
+
+| Scenario | Recorded deterministic observation |
+| --- | --- |
+| 1. Setup/processing | Fresh Compose build/migration/health/readiness/two pages/restart passes; offline HTTP uploads all four Orion documents and verifies six ready chunks, original lines/headings and physical PDF pages 1/2 |
+| 2. Answers/references | E01 and E05 return scripted statements with server-mapped Maintenance/Recovery/page-2 sources; browser keyboard source inspection passes |
+| 3. Missing/ambiguous/conflicting | E07/E08 abstain, E09 asks for clarification, E10 includes both ranges; these outputs are scripted, not live judgments |
+| 4. Failure/retry | Integration curl rejects unsupported/oversize uploads, scanned PDF fails safely; transient fake embedding failure recovers through reprocess; desktop browser demonstrates the confirmation/error/retry flow |
+| 5. Untrusted source | E11 admits injection.md but scripted output uses Maintenance; E12 returns an explicit fake-provider refusal; separate production prompt/schema tests verify boundaries, not live injection resistance |
+| 6. Deletion/repeatability | Offline deletes handbook through HTTP, verifies no handbook chunks/hits, scripts insufficiency for its target; final corpus deletion leaves no chunks and an empty ask skips AI. Concurrent deletion/reprocess/rebuild races also pass integration |
+
+The [offline report](../../apps/api/evaluation/reports/offline-2026-11-17.json) preserves actual per-case mechanics. The [live record](../../apps/api/evaluation/reports/live-2026-11-17.json) is not_run: explicit paid opt-in/configuration was absent. Source-support review is N/A because no live answer ran; it cannot be inferred from the scripted answers.
 
 ## Verified deterministic S06 browser demo
 
@@ -14,9 +25,9 @@ Run `pnpm --filter @aka/web exec playwright install chromium` once and `pnpm tes
 
 Both Chromium projects (1440×1000 and 390×844) verify the keyboard workflow, result/source focus, no horizontal overflow and no page errors in the real journey. Screenshot outputs are under ignored `apps/web/test-results/`. [S06 evidence](../features/stages/S06-frontend.md#verification-evidence) records verification and limits.
 
-## Live target scenarios (S07; not measured)
+## Orion scenarios (live outcomes not measured)
 
-The following gold Orion cases require the S07 corpus/evaluation harness and an explicit paid run. Existing S03 fixtures support the deterministic demo above; these target names/facts do not claim that S07 files already exist.
+The committed files are under `apps/api/evaluation/fixtures/`. Run `pnpm eval:offline` for the recorded mechanics; an AI-enabled browser demonstration or semantic judgment requires the separately configured paid run. The expectations below remain live targets.
 
 ### 1. Setup and document processing
 

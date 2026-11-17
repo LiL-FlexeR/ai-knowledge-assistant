@@ -13,5 +13,6 @@ coverage/
 .playwright-cli/
 test-results/
 playwright-report/
+apps/api/evaluation/results/
 .DS_Store
 apps/api/src/generated/

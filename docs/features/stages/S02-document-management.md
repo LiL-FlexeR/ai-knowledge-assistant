@@ -88,6 +88,8 @@ Upload a small synthetic TXT, list and inspect its pending state, reject an unsu
 
 ## Verification evidence
 
+Historical stage snapshot. Later-stage status statements below describe this stage's verification time; see the [current roadmap](../ROADMAP.md) for S00–S07 completion and limits.
+
 Implemented and verified on 2026-11-17. S00–S01 prerequisites were inspected and the existing isolated PostgreSQL/pgvector suite passed (10 tests) before document implementation. No schema migration or change to vector dimensions/profile was needed.
 
 ### Implemented behavior

@@ -86,6 +86,8 @@ Ask the synthetic maintenance and multi-section recovery questions, inspect serv
 
 ## Verification evidence
 
+Historical stage snapshot. Later-stage status statements below describe this stage's verification time; see the [current roadmap](../ROADMAP.md) for S00–S07 completion and limits.
+
 Implemented and verified on 2026-11-17. S00–S04 prerequisites were verified before implementation: 62 real PostgreSQL/pgvector integration tests, fresh/repeated migrations, introspection/schema checks and both existing REST demos passed. Complete retrieval rows resolved to persisted source spans; no prerequisite deliverable was missing.
 
 ### Delivered behavior and changed files

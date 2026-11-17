@@ -1,0 +1,17 @@
+{
+  "caseCap": 12,
+  "requestCap": 28,
+  "deadlineMs": 300000,
+  "outputTokens": 800,
+  "maxEstimatedUsd": 3,
+  "pricing": {
+    "verifiedAt": "2026-11-17",
+    "embeddingInputPerMillion": 0.02,
+    "generationInputPerMillion": 0.75,
+    "generationOutputPerMillion": 4.5,
+    "sources": [
+      "https://developers.openai.com/api/docs/models/text-embedding-3-small",
+      "https://developers.openai.com/api/docs/models/gpt-5.4-mini"
+    ]
+  }
+}

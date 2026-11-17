@@ -92,6 +92,8 @@ Start Compose, apply migrations, inspect readiness, run the vector integration p
 
 ## Verification evidence
 
+Historical stage snapshot. Later-stage status statements below describe this stage's verification time; see the [current roadmap](../ROADMAP.md) for S00–S07 completion and limits.
+
 Completed 2026-11-16 on Linux with the repository's pinned Node.js **24.22.3** and pnpm **12.21.0**, installed under `/tmp/aka-s01-toolchain` for this session. S00 prerequisites were reverified before implementation: lint/typecheck/build and all 36 original tests passed. Sandbox socket/subprocess restrictions required approved execution outside the sandbox; Docker and package network access were also approved.
 
 Selected PostgreSQL **18.7** / pgvector **0.8.7**, pinned by image digest, Prisma CLI/client/adapter **7.10.1**, and pg/types **8.23.1**. [ADR-003](../../architecture/decisions/ADR-003-data-storage.md#s01-implementation-and-compatibility) records official sources, the stable Prisma-7 choice over the version-8 release candidate, CommonJS generation, raw-query APIs, privilege separation, and the verified introspection limitation.

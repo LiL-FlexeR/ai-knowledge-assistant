@@ -93,6 +93,8 @@ Perform the [document→ask→source→delete journey](../../product/demo-scenar
 
 ## Verification evidence
 
+Historical stage snapshot. Later-stage status statements below describe this stage's verification time; see the [current roadmap](../ROADMAP.md) for S00–S07 completion and limits.
+
 Verified 2026-11-17 on Node 24.22.3 / pnpm 12.21.0. All S00–S05 routes/shared schemas and deterministic provider boundaries were present; the existing integration suite was rerun before completing dependent frontend work. No persistence, public DTO, ingestion, retrieval or generation behavior changed. S06 is complete; S07 remains unstarted.
 
 Implemented files: `apps/web/app/{documents,ask,api}/`, root layout/navigation/styles and redirect; `components/` (task screens, source rendering, providers, activity subscription, safe errors and selected shadcn primitives); `lib/{api,proxy,forms,presentation}.ts`; `proxy.ts` for nonce CSP/security headers; Tailwind/PostCSS/shadcn configuration; unit and Playwright tests. Workspace manifests/lockfile pin compatible dependencies; `compose.yaml` supplies the exact public web Origin to the proxy. `scripts/browser-server.mjs`, `check-web-bundle.mjs` and the integration harness provide an isolated real-API/fake-AI production browser environment. README, demo, affected requirements/stories/architecture and roadmap match these changes.

@@ -85,6 +85,8 @@ Search the synthetic corpus for the maintenance window, inspect the Markdown sou
 
 ## Verification evidence
 
+Historical stage snapshot. Later-stage status statements below describe this stage's verification time; see the [current roadmap](../ROADMAP.md) for S00–S07 completion and limits.
+
 Implemented and verified on 2026-11-17. S00–S03 prerequisites were checked before retrieval verification: the original real-database suite passed all 50 tests and both document/ingestion curl demos. No source/index prerequisite was missing.
 
 ### Delivered behavior and files

@@ -73,7 +73,7 @@ S00 caps resource limits at the documented defaults (retrieval topK remains 1–
 
 S02 implements the documents module, private local store, serialized quota admission, signed pagination, and deletion compensation. Startup and hourly reconciliation resume deleting rows and remove only generated, unreferenced originals/staging files older than one hour. Reconciliation faults log safe messages and retry; they do not prevent liveness startup. S03 installs one scanner/worker, which processes oldest pending rows only with locally valid AI configuration and database/profile compatibility. Interrupted processing becomes failed on startup; pending resumes. A whole-run AbortController also fences extraction, provider work, deletion and shutdown. Filesystem and database work are separate; transactions contain no streaming or filesystem operations.
 
-Per-route request limits and safe storage rules are owned by [security](security.md). Public processing states and error contracts are owned by [API contracts](api-contracts.md). [README](../../README.md) distinguishes available S00–S06 commands from planned later-stage commands.
+Per-route request limits and safe storage rules are owned by [security](security.md). Public processing states and error contracts are owned by [API contracts](api-contracts.md). [README](../../README.md) lists available S00–S07 commands and the separately configured paid evaluation.
 
 ## S03 runtime choices
 
